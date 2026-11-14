@@ -41,18 +41,19 @@ The manual and licence texts go to `/Library/Application Support/Sp9ceVerb`. The
 - LV2 description files: 0 errors in `lv2_validate`; all 54 control ports match the parameter table.
 - Avid AAX Validator: 6 of 6 tests.
 - Scripted host test suite in a DAW, as Apple silicon code: all 9 checks for CLAP, VST3, LV2 and Audio Unit (the Audio Unit three times). The LV2 shows the plugin's own editor there.
+- The same host test suite as Intel code, translated by Rosetta on an Apple silicon Mac: all 9 checks for CLAP, VST3, LV2 and Audio Unit, editors included.
 - Intel code: the CLAP, VST3 and LV2 were loaded by small test programs, processed audio, and gave the same output as the Apple silicon code.
 - Editor checks for VST3 and Audio Unit.
 - The installer is signed with Developer ID Installer, notarized by Apple and stapled.
 
 ## Known limits
 
-- The Intel code has not been tested inside a DAW, and no editor has been opened on an Intel Mac. The Intel AAX has not been run at all.
+- The Intel code was tested under Rosetta, not on an Intel Mac. The Intel AAX has not been run at all.
 - No Windows or Linux build (the editor is macOS only), and no standalone application.
 - The AAX has not yet been tested in Pro Tools itself. It passes Avid's AAX Validator and is PACE signed.
 - AAX and LV2 report no tail length to the host.
 - In 0.1.0's development the Audio Unit intermittently rendered silence in the host test suite. It has not recurred in the last 18 Audio Unit runs, and the cause was not identified.
-- One LV2 host test run was cut short from outside the plugin and repeated; the repeat passed all checks.
+- One LV2 host test run was cut short from outside the plugin; four full LV2 runs after it passed all checks.
 
 ## Files
 
