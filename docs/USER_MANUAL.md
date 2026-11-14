@@ -1,4 +1,4 @@
-# Sp9ceVerb 0.1.0 User Manual
+# Sp9ceVerb 1.0-Beta User Manual
 
 ## 1. What it is
 
@@ -28,16 +28,17 @@ Where the design came from is stated in `docs/PROVENANCE.md`.
 
 ## 2. System requirements
 
-- Mac with Apple silicon (arm64). There is no Intel build.
+- A Mac with Apple silicon or an Intel processor. Every format is a universal
+  binary (arm64 and x86_64).
 - macOS 11.0 or later.
-- A host that loads CLAP, VST3, Audio Unit (effect) or AAX plugins.
+- A host that loads CLAP, VST3, Audio Unit (effect), LV2 or AAX plugins.
 - The editor uses Cocoa and Core Text, so it is macOS only.
-- Windows and Linux are not supported in this release. There is no standalone
-  application and no LV2 build in this release.
+- Windows and Linux are not supported in this release, and there is no
+  standalone application.
 
 ## 3. Installing
 
-Run `Sp9ceVerb-0.1.0-macos.pkg`. The installer offers one choice per format
+Run `Sp9ceVerb-1.0-Beta-macos.pkg`. The installer offers one choice per format
 and installs to the system-wide folders:
 
 | Format | Installed to |
@@ -45,11 +46,14 @@ and installs to the system-wide folders:
 | CLAP | `/Library/Audio/Plug-Ins/CLAP/Sp9ceVerb.clap` |
 | VST3 | `/Library/Audio/Plug-Ins/VST3/Sp9ceVerb.vst3` |
 | Audio Unit | `/Library/Audio/Plug-Ins/Components/Sp9ceVerb.component` |
+| LV2 | `/Library/Audio/Plug-Ins/LV2/Sp9ceVerb.lv2` |
 | AAX (Pro Tools) | `/Library/Application Support/Avid/Audio/Plug-Ins/Sp9ceVerb.aaxplugin` |
 
 Rescan plugins in your host afterwards. The Audio Unit appears as
 "OpenGrid: Sp9ceVerb" (type `aufx`, subtype `Sp9v`, manufacturer `OpGd`); the
-CLAP id is `com.opengrid.sp9ceverb`.
+CLAP id is `com.opengrid.sp9ceverb`, and the LV2 is
+`https://opengrid.studio/plugins/sp9ceverb`. Hosts show the version as
+`1.0.0-beta`.
 
 To uninstall, delete the bundles from the folders above.
 
@@ -213,7 +217,7 @@ Both spaces expose the same controls and the same defaults.
   space behaves as a normal reverb.
 - Chaos output stays at or below -0.5 dBFS, and it is deterministic: the same
   input and settings give the same output.
-- AAX does not report a tail length to the host in this release. In Pro Tools,
+- AAX and LV2 do not report a tail length to the host in this release. There,
   let the track play on or extend the clip after the last note so the tail is
   not cut off when bouncing.
 - With long Reverb Time, high Echo Feedback or Infinite on, an insert may keep
@@ -282,6 +286,7 @@ general room acoustics and common mixing practice (`presets/README.md`).
 | CLAP | With the editor. Passes clap-validator. |
 | VST3 | With the editor. |
 | Audio Unit | Effect (`aufx`) with the editor. Passes `auval`. |
+| LV2 | With the editor, in hosts that show Cocoa editors; other hosts show their own controls for the 54 parameters. The host saves the parameters as control ports. |
 | AAX | With the editor, Developer ID signed and PACE signed. Passes Avid's AAX Validator. Not yet tested inside Pro Tools. |
 
 The plugin processes a stereo input to a stereo output. Session state (all

@@ -16,12 +16,14 @@ share one signal path, and the editor shows the reverb as it works.
 
 *The pictures are rendered from the plugin's own editor code by `sp9ceverb-preview`.*
 
-## Version 0.1.0 (pre-release)
+## Version 1.0-Beta
 
 - Nine spaces, each with its own controls below ten shared ones.
 - Three displays of the same signal: a 3D decay surface, an ocean of waves and
   an orbit view, with a stereo output meter.
 - 38 factory presets, chosen from the preset bar or the browser.
+- CLAP, VST3, Audio Unit, LV2 and AAX, each a universal binary for Apple
+  silicon and Intel Macs.
 - The tail length is reported to the host, so exports keep the ring-out
   (CLAP, VST3 and Audio Unit).
 - Chaos: in-loop nonlinearity, governed self-oscillation, pitch drift and
@@ -29,18 +31,19 @@ share one signal path, and the editor shows the reverb as it works.
 
 ## Download
 
-**macOS 11 or later, Apple silicon:**
-[Sp9ceVerb-0.1.0-macos.pkg](https://github.com/MistaMin/Sp9ceVerb/releases/download/v0.1.0/Sp9ceVerb-0.1.0-macos.pkg) ·
-[Sp9ceVerb-0.1.0-macos.dmg](https://github.com/MistaMin/Sp9ceVerb/releases/download/v0.1.0/Sp9ceVerb-0.1.0-macos.dmg) ·
-[User manual (PDF)](https://github.com/MistaMin/Sp9ceVerb/releases/download/v0.1.0/Sp9ceVerb-User-Manual.pdf)
+**macOS 11 or later, Apple silicon and Intel:**
+[Sp9ceVerb-1.0-Beta-macos.pkg](https://github.com/MistaMin/Sp9ceVerb/releases/download/v1.0-Beta/Sp9ceVerb-1.0-Beta-macos.pkg) ·
+[Sp9ceVerb-1.0-Beta-macos.dmg](https://github.com/MistaMin/Sp9ceVerb/releases/download/v1.0-Beta/Sp9ceVerb-1.0-Beta-macos.dmg) ·
+[User manual (PDF)](https://github.com/MistaMin/Sp9ceVerb/releases/download/v1.0-Beta/Sp9ceVerb-User-Manual.pdf)
 
-The installer offers **CLAP, VST3, Audio Unit and AAX**, one choice per format.
+The installer offers **CLAP, VST3, Audio Unit, LV2 and AAX**, one choice per
+format.
 It is signed with Developer ID and notarized by Apple, and the AAX is signed
 with PACE Eden for Pro Tools. The disk image holds the same installer with the
 manual and the licence texts. Checksums are on the
-[release page](https://github.com/MistaMin/Sp9ceVerb/releases/tag/v0.1.0).
+[release page](https://github.com/MistaMin/Sp9ceVerb/releases/tag/v1.0-Beta).
 
-There is no Intel, Windows or Linux build yet, and no LV2 or standalone
+This is a beta. There is no Windows or Linux build yet and no standalone
 application in this release. The AAX passes Avid's validator but has not yet
 been tested inside Pro Tools.
 
@@ -71,8 +74,8 @@ in [presets/README.md](presets/README.md).
 
 ```sh
 cargo test --workspace --release      # engine tests, no SDK needed
-scripts/build.sh                      # CLAP into dist/
-scripts/build.sh --install            # also copy it to ~/Library/Audio/Plug-Ins/CLAP
+scripts/build.sh                      # CLAP and LV2 into dist/
+scripts/build.sh --install            # also copy them to ~/Library/Audio/Plug-Ins
 scripts/build_shells.sh               # VST3, Audio Unit and AAX into dist/
 ```
 
@@ -80,15 +83,17 @@ Rust is required. OpenPluginSDK and GoodLookinDri are found at build time (a
 `Dependencies` folder next to or above this one, or the `OPENPLUGIN_SDK` and
 `GOODLOOKINDRI` variables). `scripts/build_shells.sh` also needs the VST3 SDK,
 the AudioUnitSDK and, for AAX, the Avid AAX SDK. Pro Tools only loads an AAX
-that is signed (`scripts/sign_aax.sh`).
+that is signed (`scripts/sign_aax.sh`). The builds are universal and need the
+Rust targets `aarch64-apple-darwin` and `x86_64-apple-darwin`;
+`SP9CE_ARCHS=arm64` builds one architecture.
 
 How the repository is laid out:
 
 - `crates/engine` (`sp9ce-engine`): the DSP. No dependencies and no allocation
   on the audio path. One signal path, nine voicings.
 - `plugin` (`sp9ceverb`): the plugin on OpenPluginSDK, the GoodLookinDri
-  editor, the CLAP entry and the C interface the VST3, Audio Unit and AAX
-  shells link.
+  editor, the CLAP entry, the LV2 and the C interface the VST3, Audio Unit
+  and AAX shells link.
 - `presets/`: the factory presets as text files, one folder per space. They
   are built into the plugin.
 - `tools/`: the measurement runner, the level calibration, the editor checks

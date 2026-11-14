@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.0-Beta - 2026-11-14
+
+- Every format is now a universal binary: Apple silicon (arm64) and Intel
+  (x86_64), macOS 11.0 or later.
+- New format: LV2, with the editor. The parameters are control ports, which
+  the host saves.
+- The installer has a fifth choice, LV2.
+- The engine, the presets and the sound are unchanged from 0.1.0, and
+  sessions saved with 0.1.0 open as before.
+- Hosts show the version as `1.0.0-beta`.
+
+Known limits: no Windows or Linux build and no standalone app; the AAX has not
+been tested inside Pro Tools itself; AAX and LV2 report no tail length.
+
 ## 0.1.0 - 2026-11-14
 
 First release. macOS, Apple silicon (arm64), macOS 11.0 or later.

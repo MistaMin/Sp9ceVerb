@@ -16,6 +16,7 @@ bundle carries the licence text of the format SDK it links in its
 | rustfft, num-complex, num-integer, num-traits, primal-check, strength_reduce, transpose | the spectrum in the displays | MIT or Apache License 2.0 |
 | hashbrown, ahash, allocator-api2, once_cell, cfg-if, libc, log, bitflags, serde, zerocopy, raw-window-handle | support libraries | MIT or Apache License 2.0 (zerocopy also BSD 2-Clause, raw-window-handle also Zlib) |
 | CLAP | CLAP format | MIT |
+| LV2 | LV2 format: the interface is written from the specification, and no LV2 code is linked | ISC |
 | VST3 SDK (Steinberg) | VST3 format | MIT |
 | AudioUnitSDK (Apple) | Audio Unit format | Apache License 2.0 |
 | AAX SDK (Avid) | AAX format | Avid AAX Developer Agreement / SDK License |
@@ -25,7 +26,7 @@ Agreement and is not committed to this repository. Official AAX binaries are
 digitally signed with PACE Eden for Pro Tools compatibility.
 
 The standalone application, which is built from source but not part of the
-0.1.0 release, also links cpal (Apache License 2.0), coreaudio-rs,
+release, also links cpal (Apache License 2.0), coreaudio-rs,
 coreaudio-sys, core-foundation-sys, dasp_sample and mach2 (MIT or Apache
 License 2.0).
 

@@ -11,14 +11,15 @@
 # Third-party SDKs are located like the other dependencies (a Dependencies or
 # SDKs folder next to or above this one); override with VST3_SDK, AU_SDK,
 # AAX_SDK. The AAX bundle links the Avid SDK and is unsigned.
+# Universal (arm64 and x86_64) unless SP9CE_ARCHS names one architecture.
 set -e
-# The release floor. The shells and the Rust library must agree with the CLAP (11.0).
-export MACOSX_DEPLOYMENT_TARGET=11.0
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 . "$ROOT/scripts/sdk_env.sh"
 NAME=Sp9ceVerb
 BUNDLE_ID=com.opengrid.sp9ceverb
 VERSION="$(sed -n 's/^version = "\(.*\)"/\1/p' "$ROOT/plugin/Cargo.toml" | head -1)"
+# Bundle versions are numbers only; the plugin itself reports the full version.
+VERSION="${VERSION%%-*}"
 # Four-character codes. Placeholders until registered with Apple.
 AU_SUBTYPE=Sp9v
 AU_MANUFACTURER=OpGd
@@ -64,13 +65,14 @@ if [ "$BUILD_IT" = 1 ]; then
   cd "$ROOT/plugin"
   # cargo does not notice a changed deployment target, so the library is rebuilt each time.
   touch src/lib.rs
-  cargo_sdk build --release --lib
+  cargo_universal --lib
+  join_archs libsp9ceverb.a target/universal/libsp9ceverb.a
 
   BUILD="$ROOT/plugin/target/shells"
   cmake -S "$SDK_DIR/native" -B "$BUILD" -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 -DCMAKE_C_FLAGS="$MAP" -DCMAKE_CXX_FLAGS="$MAP" -DCMAKE_OBJCXX_FLAGS="$MAP" \
+    -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 -DCMAKE_OSX_ARCHITECTURES="$(echo $SP9CE_ARCHS | tr ' ' ';')" -DCMAKE_C_FLAGS="$MAP" -DCMAKE_CXX_FLAGS="$MAP" -DCMAKE_OBJCXX_FLAGS="$MAP" \
     -DCMAKE_SHARED_LINKER_FLAGS="$FW" -DCMAKE_MODULE_LINKER_FLAGS="$FW" -DCMAKE_EXE_LINKER_FLAGS="$FW" \
-    -DOP_RUST_LIB="$ROOT/plugin/target/release/libsp9ceverb.a" \
+    -DOP_RUST_LIB="$ROOT/plugin/target/universal/libsp9ceverb.a" \
     -DOP_VST3_SDK="$VST3_SDK" -DOP_AU_SDK="$AU_SDK" -DOP_AAX_SDK="$AAX_SDK" \
     -DOP_EDITOR=ON -DOP_TAIL=ON -DOP_AAX_PAGES=ON \
     -DOP_PRODUCT="$NAME" -DOP_BUNDLE_ID="$BUNDLE_ID" -DOP_VERSION="$VERSION" \

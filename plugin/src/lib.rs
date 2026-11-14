@@ -6,6 +6,7 @@ pub mod clap_host;
 #[cfg(target_os = "macos")]
 pub mod cocoa;
 pub mod gui;
+pub mod lv2_host;
 pub mod plugin;
 pub mod presets;
 pub mod shell_host;

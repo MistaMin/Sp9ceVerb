@@ -20,3 +20,27 @@ cargo_sdk() { # usage: cargo_sdk <cargo args...>
     --config "patch.crates-io.goodlookindri-shell.path=\"$DRI_DIR/shell\"" \
     "$@"
 }
+
+# A release is universal. SP9CE_ARCHS="arm64" (or "x86_64") builds one
+# architecture, which is quicker while developing.
+SP9CE_ARCHS="${SP9CE_ARCHS:-arm64 x86_64}"
+# The release floor, the same for every format and both architectures.
+MACOSX_DEPLOYMENT_TARGET=11.0
+export MACOSX_DEPLOYMENT_TARGET
+rust_target() { case "$1" in arm64) echo aarch64-apple-darwin ;; x86_64) echo x86_64-apple-darwin ;; *) echo "unknown architecture $1" >&2; return 1 ;; esac; }
+# usage: cargo_universal <cargo build args...>; run it in plugin/. Builds each
+# architecture of SP9CE_ARCHS.
+cargo_universal() {
+  for arch in $SP9CE_ARCHS; do
+    cargo_sdk build --release --target "$(rust_target "$arch")" "$@" || return 1
+  done
+}
+# usage: join_archs <file name under target/<triple>/release> <output file>
+join_archs() {
+  set --  "$1" "$2"
+  inputs=""
+  for arch in $SP9CE_ARCHS; do inputs="$inputs target/$(rust_target "$arch")/release/$1"; done
+  mkdir -p "$(dirname "$2")"
+  # shellcheck disable=SC2086
+  lipo -create $inputs -output "$2"
+}

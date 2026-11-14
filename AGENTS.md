@@ -21,6 +21,10 @@ Sp9ceVerb, a reverb plugin with nine spaces on one engine. CLAP id
   its plugin object add the `clap.gui` extension and carry editor gestures.
   `presets.rs` holds the files of `presets/`, embedded by `build.rs`; the
   editor's preset bar and browser load them as ordinary parameter gestures.
+  `lv2_host.rs` is the LV2 plugin and its editor on that same C ABI, with
+  the parameters as control ports from port 4; it also writes the bundle's
+  two `.ttl` files from the parameter table (`sp9ceverb-lv2-ttl`). The LV2
+  name in `lv2_host::URI` is fixed for good.
   `shell_host.rs` is the C ABI the SDK's VST3, AU and AAX shells link:
   `op_shell_*` (audio, forwarded to the SDK), `op_shell_tail_seconds`, and
   `op_editor_*` (the same editor, gestures sent to the host on the main thread).
@@ -32,6 +36,8 @@ Sp9ceVerb, a reverb plugin with nine spaces on one engine. CLAP id
 - Adding a voicing must leave the others bit-identical unless that is the point
   of the change; the Chaos path is skipped entirely outside its own voicing.
 - Chaos output stays at or below -0.5 dBFS and is deterministic.
+- Every build is universal unless `SP9CE_ARCHS` names one architecture
+  (`scripts/sdk_env.sh`); a release is never built that way.
 - No machine paths in the repository or the binaries: dependencies are located
   by `scripts/sdk_env.sh`, and `scripts/build.sh` remaps build paths.
 - Do not copy code, tables or presets from other reverbs. Read
@@ -62,7 +68,7 @@ Sp9ceVerb, a reverb plugin with nine spaces on one engine. CLAP id
 
 ```sh
 cargo test --workspace --release
-scripts/build.sh [--install]
+scripts/build.sh [--install]                    # CLAP, LV2 and the standalone
 scripts/build_shells.sh [--install] [--check]   # VST3, AU, AAX; --check clicks each editor's preset arrow
 scripts/build_shells.sh --check-only            # the same checks on what is already built; builds nothing
 auval -v aufx Sp9v OpGd
@@ -95,6 +101,10 @@ Measurement: `cargo build --release -p sp9ce-engine --example probe`, then
 - `CHANGELOG.md`, `RELEASE_NOTES.md` (the text of the GitHub release) and
   `THIRD_PARTY_LICENSES.md` (every linked component; update it with
   `cargo_sdk tree -e normal` when dependencies change).
-- A release follows the Make-Plugin-Release procedure. It expects universal
-  macOS binaries, LV2 and a standalone with an icon; 0.1.0 shipped arm64 only,
-  without LV2 or a standalone, and says so in its notes.
+- A release follows the Make-Plugin-Release procedure: universal macOS
+  binaries (arm64 and x86_64) of CLAP, VST3, Audio Unit, LV2 and AAX. The
+  owner decided against shipping the standalone. 0.1.0 was arm64 only and had
+  no LV2.
+- Versions: `plugin/Cargo.toml` holds the full version (`1.0.0-beta`), which
+  hosts show. Bundle `Info.plist` files get the numbers alone (`1.0.0`).
+  Documents, the tag and the file names use the owner's wording (`1.0-Beta`).

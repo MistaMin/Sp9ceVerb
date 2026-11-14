@@ -1,6 +1,6 @@
 [package]
 name = "sp9ceverb"
-version = "0.1.0"
+version = "1.0.0-beta"
 edition = "2021"
 license = "MIT"
 description = "Sp9ceVerb: a nine-space reverb plugin on OpenPluginSDK with a GoodLookinDri editor."
@@ -25,6 +25,10 @@ standalone = ["dep:cpal"]
 [[bin]]
 name = "sp9ceverb-preview"
 path = "src/bin/preview.rs"
+
+[[bin]]
+name = "sp9ceverb-lv2-ttl"
+path = "src/bin/lv2_ttl.rs"
 
 [[bin]]
 name = "sp9ceverb-app"
