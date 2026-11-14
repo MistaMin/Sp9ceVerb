@@ -1,0 +1,40 @@
+[package]
+name = "sp9ceverb"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Sp9ceVerb: a nine-space reverb plugin on OpenPluginSDK with a GoodLookinDri editor."
+publish = false
+
+[lib]
+name = "sp9ceverb"
+crate-type = ["cdylib", "staticlib", "rlib"]
+
+# The SDK and the drawing toolkit are located at build time by
+# scripts/build.sh, which supplies them as cargo patches.
+[dependencies]
+sp9ce-engine = { path = "../crates/engine" }
+openplugin = "0.2.0-beta"
+goodlookindri-shell = "0.1.0"
+cpal = { version = "0.15", optional = true }
+
+[features]
+default = []
+standalone = ["dep:cpal"]
+
+[[bin]]
+name = "sp9ceverb-preview"
+path = "src/bin/preview.rs"
+
+[[bin]]
+name = "sp9ceverb-app"
+path = "src/bin/standalone.rs"
+required-features = ["standalone"]
+
+[profile.release]
+codegen-units = 1
+lto = "thin"
+strip = "symbols"
+debug = false
+
+[workspace]

@@ -1,0 +1,14 @@
+//! Sp9ceVerb: the unified reverb engine as a plugin on OpenPluginSDK, with a
+//! GoodLookinDri editor and a software-rendered 3D decay surface.
+
+#[cfg(target_os = "macos")]
+pub mod clap_host;
+#[cfg(target_os = "macos")]
+pub mod cocoa;
+pub mod gui;
+pub mod plugin;
+
+pub use plugin::{OnePlugin, Shared};
+
+// VST3, Audio Unit and AAX shells link this ABI (no editor in those shells).
+openplugin::targets::export_shell!(plugin::OnePlugin);

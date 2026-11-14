@@ -1,0 +1,8 @@
+/target
+/plugin/target
+/dist
+/qa
+/tools/runs
+/tools/logs
+__pycache__/
+.DS_Store

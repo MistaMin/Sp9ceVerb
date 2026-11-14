@@ -1,0 +1,367 @@
+//! The unified reverb as an `openplugin::Plugin`, plus the lock-free state it
+//! shares with its editor.
+
+use openplugin::dri::goodlookindri::spectrum::SampleRing;
+use openplugin::prelude::*;
+use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
+use std::sync::{Arc, Mutex, OnceLock};
+use sp9ce_engine::{params, Engine, Mode, ParamId};
+
+pub const PARAM_COUNT: usize = ParamId::COUNT;
+pub const MODE_NAMES: [&str; Mode::COUNT] = [
+    "Room", "Hall", "Plate", "Chamber", "Concert Hall", "Random Hall", "Vintage Plate", "Ambience", "Chaos",
+];
+
+/// One editor-to-audio message.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum GuiEvent {
+    Begin(usize),
+    Value(usize, f32),
+    End(usize),
+}
+
+const QUEUE: usize = 512;
+
+/// Single-producer (editor) single-consumer (audio or main-thread flush) queue.
+pub struct GuiQueue {
+    slots: [AtomicU32; QUEUE],
+    values: [AtomicU32; QUEUE],
+    head: AtomicUsize,
+    tail: AtomicUsize,
+}
+
+impl GuiQueue {
+    fn new() -> Self {
+        Self {
+            slots: std::array::from_fn(|_| AtomicU32::new(0)),
+            values: std::array::from_fn(|_| AtomicU32::new(0)),
+            head: AtomicUsize::new(0),
+            tail: AtomicUsize::new(0),
+        }
+    }
+
+    pub fn push(&self, e: GuiEvent) -> bool {
+        let head = self.head.load(Ordering::Relaxed);
+        let next = (head + 1) % QUEUE;
+        if next == self.tail.load(Ordering::Acquire) {
+            return false;
+        }
+        let (kind, index, value) = match e {
+            GuiEvent::Begin(i) => (1u32, i, 0.0),
+            GuiEvent::Value(i, v) => (2, i, v),
+            GuiEvent::End(i) => (3, i, 0.0),
+        };
+        self.slots[head].store((kind << 16) | index as u32, Ordering::Relaxed);
+        self.values[head].store(value.to_bits(), Ordering::Relaxed);
+        self.head.store(next, Ordering::Release);
+        true
+    }
+
+    pub fn pop(&self) -> Option<GuiEvent> {
+        let tail = self.tail.load(Ordering::Relaxed);
+        if tail == self.head.load(Ordering::Acquire) {
+            return None;
+        }
+        let slot = self.slots[tail].load(Ordering::Relaxed);
+        let value = f32::from_bits(self.values[tail].load(Ordering::Relaxed));
+        self.tail.store((tail + 1) % QUEUE, Ordering::Release);
+        let index = (slot & 0xffff) as usize;
+        Some(match slot >> 16 {
+            1 => GuiEvent::Begin(index),
+            2 => GuiEvent::Value(index, value),
+            _ => GuiEvent::End(index),
+        })
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.tail.load(Ordering::Acquire) == self.head.load(Ordering::Acquire)
+    }
+}
+
+/// State shared between the audio thread and the editor. Wait-free on both sides.
+pub struct Shared {
+    /// Current plain value of every parameter, as the engine has it.
+    values: [AtomicU32; PARAM_COUNT],
+    /// Mono mix of the output, for the editor's analyser.
+    pub ring: SampleRing,
+    pub sample_rate: AtomicU32,
+    peak_out: [AtomicU32; 2],
+    peak_in: AtomicU32,
+    /// Editor gestures waiting to be handed to the host and the engine.
+    pub queue: GuiQueue,
+    /// Which display the editor shows; kept here so reopening the editor keeps it.
+    pub view: AtomicU32,
+}
+
+impl Shared {
+    pub fn new() -> Arc<Self> {
+        let info = info();
+        Arc::new(Self {
+            values: std::array::from_fn(|i| AtomicU32::new(info.params[i].default.to_bits())),
+            ring: SampleRing::new(),
+            sample_rate: AtomicU32::new(48_000f32.to_bits()),
+            peak_out: [AtomicU32::new(0), AtomicU32::new(0)],
+            peak_in: AtomicU32::new(0),
+            queue: GuiQueue::new(),
+            view: AtomicU32::new(0),
+        })
+    }
+
+    pub fn value(&self, index: usize) -> f32 {
+        f32::from_bits(self.values[index].load(Ordering::Relaxed))
+    }
+
+    pub fn set_value(&self, index: usize, v: f32) {
+        self.values[index].store(v.to_bits(), Ordering::Relaxed);
+    }
+
+    /// Output peaks since the last call (linear), then cleared.
+    pub fn take_peaks(&self) -> ([f32; 2], f32) {
+        let l = f32::from_bits(self.peak_out[0].swap(0, Ordering::Relaxed));
+        let r = f32::from_bits(self.peak_out[1].swap(0, Ordering::Relaxed));
+        let i = f32::from_bits(self.peak_in.swap(0, Ordering::Relaxed));
+        ([l, r], i)
+    }
+
+    fn raise(slot: &AtomicU32, v: f32) {
+        if v > f32::from_bits(slot.load(Ordering::Relaxed)) {
+            slot.store(v.to_bits(), Ordering::Relaxed);
+        }
+    }
+}
+
+fn leak(s: String) -> &'static str {
+    Box::leak(s.into_boxed_str())
+}
+
+fn snake(id: ParamId) -> &'static str {
+    let name = format!("{id:?}");
+    let mut out = String::new();
+    for (i, c) in name.chars().enumerate() {
+        if c.is_ascii_uppercase() || (c.is_ascii_digit() && i > 0 && !out.ends_with(|p: char| p.is_ascii_digit())) {
+            if i > 0 {
+                out.push('_');
+            }
+            out.push(c.to_ascii_lowercase());
+        } else {
+            out.push(c);
+        }
+    }
+    leak(out)
+}
+
+/// The descriptor is built once from the engine's own parameter table, which
+/// stays the single source of truth for names, ranges and defaults.
+pub fn info() -> &'static PluginInfo {
+    static INFO: OnceLock<&'static PluginInfo> = OnceLock::new();
+    INFO.get_or_init(|| {
+        let mut list = Vec::with_capacity(PARAM_COUNT);
+        for id in ParamId::ALL {
+            let spec = Mode::ALL
+                .iter()
+                .find_map(|m| params::specs(*m).find(|s| s.id == id))
+                .expect("every parameter belongs to a voicing");
+            let (min, max) = params::range(id);
+            let unit = match spec.unit {
+                "s" => Unit::Seconds,
+                "Hz" => Unit::Hz,
+                _ => Unit::None,
+            };
+            let mut p = ParamInfo::new(snake(id), spec.name, min, max, spec.default, unit);
+            if id == ParamId::Mode {
+                p = p.with_choices(&MODE_NAMES);
+            } else if spec.steps == 2 {
+                p.unit = Unit::Toggle;
+            } else if spec.steps > 2 {
+                p = p.with_steps(spec.steps);
+            }
+            if matches!(
+                id,
+                ParamId::ReverbTime | ParamId::BassXover | ParamId::BassRt | ParamId::HfDamp | ParamId::RoomScale
+            ) {
+                p = p.with_taper(Taper::Log);
+            }
+            list.push(p);
+        }
+        let params: &'static [ParamInfo] = Box::leak(list.into_boxed_slice());
+        Box::leak(Box::new(PluginInfo {
+            id: "com.opengrid.sp9ceverb",
+            name: "Sp9ceVerb",
+            vendor: "OpenGrid",
+            url: "",
+            email: "",
+            version: env!("CARGO_PKG_VERSION"),
+            category: Category::Reverb,
+            params,
+            is_instrument: false,
+            has_editor: true,
+        }))
+    })
+}
+
+/// The most recently created instance's shared state. The editor bridge takes
+/// it right after it asks the SDK for a new plugin, on the same thread.
+static HANDOFF: Mutex<Option<Arc<Shared>>> = Mutex::new(None);
+
+pub fn take_handoff() -> Option<Arc<Shared>> {
+    HANDOFF.lock().ok().and_then(|mut g| g.take())
+}
+
+pub struct OnePlugin {
+    engine: Engine,
+    shared: Arc<Shared>,
+    in_l: Vec<f32>,
+    in_r: Vec<f32>,
+    out_r: Vec<f32>,
+    sample_rate: f32,
+}
+
+impl Default for OnePlugin {
+    fn default() -> Self {
+        let shared = Shared::new();
+        if let Ok(mut slot) = HANDOFF.lock() {
+            *slot = Some(shared.clone());
+        }
+        // Start from the published defaults, so the host and the engine agree.
+        let mut engine = Engine::new(Mode::Hall);
+        for (i, p) in info().params.iter().enumerate() {
+            engine.set_param(ParamId::ALL[i], p.default);
+        }
+        Self {
+            engine,
+            shared,
+            in_l: Vec::new(),
+            in_r: Vec::new(),
+            out_r: Vec::new(),
+            sample_rate: 48_000.0,
+        }
+    }
+}
+
+impl OnePlugin {
+    pub fn shared(&self) -> Arc<Shared> {
+        self.shared.clone()
+    }
+}
+
+impl Plugin for OnePlugin {
+    fn info(&self) -> &'static PluginInfo {
+        info()
+    }
+
+    fn prepare(&mut self, sample_rate: f32, max_block: usize, _channels: usize) {
+        self.sample_rate = sample_rate;
+        self.shared.sample_rate.store(sample_rate.to_bits(), Ordering::Relaxed);
+        self.engine.activate(sample_rate);
+        let n = max_block.max(1);
+        self.in_l = vec![0.0; n];
+        self.in_r = vec![0.0; n];
+        self.out_r = vec![0.0; n];
+    }
+
+    fn reset(&mut self) {
+        self.engine.reset();
+    }
+
+    fn set_param(&mut self, id: &str, value: f32) -> bool {
+        match info().params.iter().position(|p| p.id == id) {
+            Some(index) => self.set_param_index(index, value),
+            None => false,
+        }
+    }
+
+    fn set_param_index(&mut self, index: usize, value: f32) -> bool {
+        let Some(p) = info().params.get(index) else { return false };
+        let v = p.clamp(value);
+        self.engine.set_param(ParamId::ALL[index], v);
+        self.shared.set_value(index, self.engine.param(ParamId::ALL[index]));
+        true
+    }
+
+    fn param(&self, id: &str) -> Option<f32> {
+        info().params.iter().position(|p| p.id == id).map(|i| self.engine.param(ParamId::ALL[i]))
+    }
+
+    fn process(&mut self, io: &mut [Vec<f32>], frames: usize) {
+        let frames = frames.min(self.in_l.len());
+        if frames == 0 || io.is_empty() {
+            return;
+        }
+        let mut peak_in = 0.0f32;
+        if io.len() >= 2 {
+            self.in_l[..frames].copy_from_slice(&io[0][..frames]);
+            self.in_r[..frames].copy_from_slice(&io[1][..frames]);
+            for i in 0..frames {
+                peak_in = peak_in.max(self.in_l[i].abs()).max(self.in_r[i].abs());
+            }
+            let (left, right) = io.split_at_mut(1);
+            let (l, r) = (&mut left[0][..frames], &mut right[0][..frames]);
+            self.engine.process(&self.in_l[..frames], &self.in_r[..frames], l, r);
+            let (mut pl, mut pr) = (0.0f32, 0.0f32);
+            for i in 0..frames {
+                if !l[i].is_finite() {
+                    l[i] = 0.0;
+                }
+                if !r[i].is_finite() {
+                    r[i] = 0.0;
+                }
+                pl = pl.max(l[i].abs());
+                pr = pr.max(r[i].abs());
+            }
+            Shared::raise(&self.shared.peak_out[0], pl);
+            Shared::raise(&self.shared.peak_out[1], pr);
+            self.shared.ring.push(&[l, r]);
+        } else {
+            self.in_l[..frames].copy_from_slice(&io[0][..frames]);
+            for v in &self.in_l[..frames] {
+                peak_in = peak_in.max(v.abs());
+            }
+            let l = &mut io[0][..frames];
+            self.engine.process(&self.in_l[..frames], &self.in_l[..frames], l, &mut self.out_r[..frames]);
+            let mut p = 0.0f32;
+            for i in 0..frames {
+                let v = 0.5 * (l[i] + self.out_r[i]);
+                l[i] = if v.is_finite() { v } else { 0.0 };
+                p = p.max(l[i].abs());
+            }
+            Shared::raise(&self.shared.peak_out[0], p);
+            Shared::raise(&self.shared.peak_out[1], p);
+            self.shared.ring.push(&[l]);
+        }
+        Shared::raise(&self.shared.peak_in, peak_in);
+    }
+
+    fn tail_samples(&self) -> usize {
+        let rt = self.engine.param(ParamId::ReverbTime) * self.engine.param(ParamId::BassRt).max(1.0);
+        ((rt + 1.5) * self.sample_rate) as usize
+    }
+
+    fn tail(&self) -> Tail {
+        if self.engine.param(ParamId::Infinite) > 0.5 {
+            Tail::Infinite
+        } else {
+            Tail::Finite(self.tail_samples().min(u32::MAX as usize) as u32)
+        }
+    }
+
+    fn accepts_sample_rate(&self, sample_rate: f32) -> bool {
+        // The engine clamps its own rate; any sane value is fine.
+        sample_rate.is_finite() && (1_000.0..=768_000.0).contains(&sample_rate)
+    }
+
+    fn save_state(&mut self) -> Option<Vec<u8>> {
+        let values: Vec<f32> = (0..PARAM_COUNT).map(|i| self.engine.param(ParamId::ALL[i])).collect();
+        Some(encode_params(info(), &values))
+    }
+
+    fn load_state(&mut self, data: &[u8]) -> bool {
+        match decode_params(info(), data) {
+            Some(values) => restore_params(self, &values),
+            None => false,
+        }
+    }
+
+    fn note_ports(&self) -> NotePorts {
+        NotePorts { input: false, output: false }
+    }
+}

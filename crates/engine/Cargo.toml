@@ -1,0 +1,13 @@
+[package]
+name = "sp9ce-engine"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+rust-version = "1.85"
+description = "The Sp9ceVerb reverb engine: one signal path, nine voicings. Framework-free."
+
+[lib]
+name = "sp9ce_engine"
+path = "src/lib.rs"
+
+[dependencies]
