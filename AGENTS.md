@@ -52,6 +52,11 @@ Sp9ceVerb, a reverb plugin with nine spaces on one engine. CLAP id
   QA, and the agent that runs the tests and QA does not edit plugin code,
   the SDK shells or the build scripts.
 - No commits without the user's approval.
+- This is a public repository. Commits are authored by the `MistaMin` GitHub
+  account (its noreply address, set in this repository's git config) and
+  carry no co-author or "generated with" lines. No names of AI tools, and no
+  names of other makers' reverbs, in source, documents or commit messages.
+  Planning and session notes stay out of the repository.
 
 ## Build and test
 
@@ -72,3 +77,24 @@ only act in their own voicing, so the exceptions file gives each one a
 
 Measurement: `cargo build --release -p sp9ce-engine --example probe`, then
 `python3 tools/measure.py <tag> <mode> <label> [key=value ...]`.
+
+## Documents and release
+
+- `README.md` is the page people see on GitHub: what it is, pictures, download
+  links, the user guide, then the build notes. Keep its version, links and
+  format list in step with the newest release.
+- `docs/USER_MANUAL.md` is the manual. Its tables repeat
+  `crates/engine/src/params.rs`: change them together.
+  `python3 tools/build_user_manual.py` builds
+  `output/pdf/Sp9ceVerb-User-Manual.pdf` (reportlab and Pillow), which is
+  attached to the GitHub release.
+- The pictures in `docs/images/` come from the editor's own code:
+  `cargo_sdk build --release --bin sp9ceverb-preview`, then
+  `sp9ceverb-preview <out.png> [mode 0..8] [scale] [seconds] [chaos] [view 0..2] [browser 0|1] [preset index]`.
+  Render them again when the editor changes.
+- `CHANGELOG.md`, `RELEASE_NOTES.md` (the text of the GitHub release) and
+  `THIRD_PARTY_LICENSES.md` (every linked component; update it with
+  `cargo_sdk tree -e normal` when dependencies change).
+- A release follows the Make-Plugin-Release procedure. It expects universal
+  macOS binaries, LV2 and a standalone with an icon; 0.1.0 shipped arm64 only,
+  without LV2 or a standalone, and says so in its notes.

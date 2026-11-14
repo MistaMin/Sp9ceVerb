@@ -24,6 +24,8 @@ The nine spaces:
 
 Where the design came from is stated in `docs/PROVENANCE.md`.
 
+![Sp9ceVerb, Hall with the decay surface](images/sp9ceverb-hall-surface.png)
+
 ## 2. System requirements
 
 - Mac with Apple silicon (arm64). There is no Intel build.
@@ -62,6 +64,13 @@ from 1000 Hz in kHz.
 
 A voicing control only acts in its own space. In other spaces the host still
 lists it, but changing it does nothing.
+
+Some controls belong to more than one space and keep one value across them:
+Spin and Wander (Hall, Random Hall, Chaos), Randomize (Room, Random Hall,
+Chaos), and the echoes and Infinite (Plate, Chamber, Vintage Plate). A new
+instance, and a double-click on the knob, uses the default of the first space
+in that list. The other defaults in the tables below are what a preset of that
+space starts from when it does not name the control.
 
 ### 4.1 Mode
 
@@ -228,6 +237,10 @@ current space and the decay time ("DECAY 1.60 s", or "DECAY HELD").
   ring is a moment in time, frequency runs around the ring, and level pushes
   the ring outward.
 
+| Ocean (Concert Hall) | Orbit (Plate) |
+|---|---|
+| ![Ocean view](images/sp9ceverb-concert-ocean.png) | ![Orbit view](images/sp9ceverb-plate-orbit.png) |
+
 A stereo output meter ("OUT") with peak hold sits at the right edge of the
 display in all three views.
 
@@ -242,6 +255,8 @@ preset, the arrows start at the first preset of the current space.
 Loading a preset sets the parameters it names. A parameter the preset leaves
 out keeps the default of its space. Mix values in the presets assume the
 plugin is used as an insert; on a send, set Mix to 1.
+
+![Preset browser](images/sp9ceverb-presets.png)
 
 Factory presets by space (38 in total):
 
@@ -277,6 +292,8 @@ parameters) is saved and restored by the host.
 - Source code: MIT License, copyright (c) 2026 Marcos Quirino Deida (`LICENSE`).
 - Official binaries: proprietary freeware (`BINARY_LICENSE.txt`). You may
   download, install and use them free of charge, personal or commercial.
+- Third-party components and their terms are listed in
+  `THIRD_PARTY_LICENSES.md`.
 - Third-party notices that ship inside the bundles (in each bundle's
   `Contents/Resources`): the VST3 SDK (`VST3-SDK-LICENSE.txt`), the
   AudioUnitSDK (`AudioUnitSDK-LICENSE.txt`) and the AAX SDK
