@@ -1,0 +1,17 @@
+# Folding in the loop, close to self-oscillation, pitch drifting upward.
+name = Feedback Garden
+mode = chaos
+Mix = 0.4
+Predelay = 0.02
+Diffusion = 0.9
+ReverbTime = 4.0
+HfDamp = 7000
+Width = 1.5
+Chaos = 0.75
+ChaosDrive = 0.6
+ChaosGain = 1.1
+ChaosShift = 0.6
+ChaosScramble = 0.4
+ChaosNonlin = 1
+Spin = 0.7
+Wander = 0.7

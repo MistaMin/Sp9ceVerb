@@ -1,0 +1,12 @@
+# The same hall with the motion nearly off, for pitched solo instruments.
+name = Still Hall
+mode = random_hall
+Mix = 0.25
+Predelay = 0.018
+Diffusion = 0.8
+Shape = 6
+ReverbTime = 2.0
+BassRt = 1.2
+HfDamp = 6500
+Spin = 0.15
+Wander = 0.1

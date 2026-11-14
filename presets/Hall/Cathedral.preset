@@ -1,0 +1,23 @@
+# The long end of worship spaces: several seconds, dark, far walls.
+name = Cathedral
+mode = hall
+Mix = 0.35
+Predelay = 0.045
+Diffusion = 0.9
+Shape = 3
+ReverbTime = 7.5
+BassXover = 180
+BassRt = 1.4
+HfDamp = 3500
+Width = 1.5
+Spin = 0.2
+Wander = 0.3
+TapSlope = 0.6
+Ref1Delay = 0.045
+Ref2Delay = 0.09
+Ref3Delay = 0.16
+Ref4Delay = 0.26
+Ref1Level = 0.5
+Ref2Level = 0.45
+Ref3Level = 0.4
+Ref4Level = 0.35

@@ -1,0 +1,13 @@
+# A treated studio room decays in roughly 0.3 to 0.6 s.
+name = Vocal Booth
+mode = room
+Mix = 0.15
+Predelay = 0.002
+Diffusion = 0.8
+Shape = 4
+ReverbTime = 0.35
+BassRt = 0.8
+HfDamp = 7000
+Width = 0.8
+RoomScale = 0.5
+TailPredelay = 0.005

@@ -1,0 +1,13 @@
+# A hall whose delays wander, so long tails do not ring on fixed pitches.
+name = Drifting Hall
+mode = random_hall
+Mix = 0.3
+Predelay = 0.02
+Diffusion = 0.85
+Shape = 5
+ReverbTime = 2.8
+BassRt = 1.15
+HfDamp = 6000
+Width = 1.3
+Spin = 0.7
+Wander = 0.6

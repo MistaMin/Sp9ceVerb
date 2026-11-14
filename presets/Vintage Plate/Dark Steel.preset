@@ -1,0 +1,13 @@
+# An old plate is dark: the top end is gone in under a second while the lows bloom.
+name = Dark Steel
+mode = vintage_plate
+Mix = 0.25
+Predelay = 0.015
+Diffusion = 0.9
+Shape = 3
+ReverbTime = 2.6
+BassXover = 350
+BassRt = 1.6
+HfDamp = 3500
+EchoLFb = 0.0
+EchoRFb = 0.0

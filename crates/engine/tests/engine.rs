@@ -282,3 +282,26 @@ fn ambience_is_dense_at_once_and_short() {
     assert!(density > 0.75, "front is sparse: {density}");
     assert!(rms_db(&l[36_000..]) < rms_db(&l[..4_800]) - 40.0, "ambience rings on");
 }
+
+#[test]
+fn ambience_at_five_times_its_size_is_longer_but_still_dense_and_no_louder() {
+    let render_at = |size: f32| {
+        let mut e = wet(Mode::Ambience);
+        e.set_param(ParamId::AmbSize, size);
+        let x = impulse(FS as usize * 2);
+        let (l, r) = render(&mut e, &x, &x, 256);
+        l.iter().zip(&r).map(|(a, b)| 0.5 * (a + b)).collect::<Vec<f32>>()
+    };
+    let (small, large) = (render_at(1.0), render_at(params::AMB_SIZE_MAX));
+    assert!(large.iter().all(|v| v.is_finite()));
+    // Longer: more of its energy arrives after 300 ms.
+    let late = |x: &[f32]| rms_db(&x[14_400..48_000]) - rms_db(&x[..14_400]);
+    assert!(late(&large) > late(&small) + 6.0, "large {} small {}", late(&large), late(&small));
+    // Still dense: between 20 and 120 ms no more than a third of the samples are silent gaps.
+    let window = &large[960..5_760];
+    let floor = 10f32.powf((rms_db(window) - 30.0) / 20.0);
+    let gaps = window.iter().filter(|v| v.abs() < floor).count() as f32 / window.len() as f32;
+    assert!(gaps < 0.33, "sparse: {gaps}");
+    // No louder overall.
+    assert!((rms_db(&large) - rms_db(&small)).abs() < 1.5);
+}

@@ -1,0 +1,14 @@
+# A hall that is only slightly unstable.
+name = Gentle Unrest
+mode = chaos
+Mix = 0.3
+Predelay = 0.015
+Diffusion = 0.8
+ReverbTime = 2.5
+HfDamp = 6000
+Chaos = 0.3
+ChaosDrive = 0.35
+ChaosGain = 0.8
+ChaosShift = 0.2
+ChaosScramble = 0.15
+ChaosNonlin = 0

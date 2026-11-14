@@ -1,0 +1,16 @@
+# 20 to 40 ms of pre-delay keeps the voice in front of the hall.
+name = Vocal Hall
+mode = hall
+Mix = 0.2
+Predelay = 0.035
+Diffusion = 0.85
+Shape = 4
+ReverbTime = 2.2
+BassXover = 300
+BassRt = 0.9
+HfDamp = 7500
+Width = 1.2
+Ref1Level = 0.5
+Ref2Level = 0.4
+Ref3Level = 0.3
+Ref4Level = 0.2

@@ -1,0 +1,14 @@
+# Heavily damped, with the two reflections left audible.
+name = Damped Plate
+mode = vintage_plate
+Mix = 0.25
+Predelay = 0.008
+Diffusion = 0.85
+Shape = 5
+ReverbTime = 0.9
+BassRt = 1.2
+HfDamp = 4500
+RefLDelay = 0.009
+RefRDelay = 0.014
+EchoLFb = 0.0
+EchoRFb = 0.0

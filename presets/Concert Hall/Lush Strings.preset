@@ -1,0 +1,14 @@
+# A long, slow-building hall with deeper chorus for sustained parts.
+name = Lush Strings
+mode = concert_hall
+Mix = 0.35
+Predelay = 0.025
+Diffusion = 0.95
+Shape = 3
+ReverbTime = 2.8
+BassRt = 1.25
+HfDamp = 6500
+Width = 1.5
+ChorusType = 1
+ChorusDepth = 0.55
+Definition = 0.35

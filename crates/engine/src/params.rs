@@ -256,8 +256,11 @@ const VINTAGE: [ParamSpec; 13] = [
     s(P::Infinite, "Infinite", "", 0.0, 0.0, 1.0, 2),
 ];
 
+/// Largest Ambience geometry: at 5x the room's lines are as long as a large hall's.
+pub const AMB_SIZE_MAX: f32 = 5.0;
+
 const AMBIENCE: [ParamSpec; 3] = [
-    s(P::AmbSize, "Size", "x", 1.0, 0.5, 2.0, 0),
+    s(P::AmbSize, "Size", "x", 1.0, 0.5, AMB_SIZE_MAX, 0),
     s(P::AmbTone, "Tone", "", 0.5, 0.0, 1.0, 0),
     s(P::AmbCharacter, "Character", "", 0.5, 0.0, 1.0, 0),
 ];

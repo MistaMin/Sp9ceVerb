@@ -1,0 +1,11 @@
+# Small, dull and front-heavy: speech stays intelligible.
+name = Dialogue Booth
+mode = ambience
+Mix = 0.12
+Predelay = 0.0
+Diffusion = 0.7
+ReverbTime = 0.3
+Width = 0.7
+AmbSize = 0.6
+AmbTone = 0.35
+AmbCharacter = 0.2

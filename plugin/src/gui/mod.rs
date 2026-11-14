@@ -7,6 +7,7 @@ pub mod visual;
 pub mod widgets;
 
 use crate::plugin::{info, GuiEvent, Shared, MODE_NAMES, PARAM_COUNT};
+use crate::presets;
 use canvas::Canvas;
 use goodlookindri_shell::Framebuffer;
 use openplugin::dri::goodlookindri::color::Color;
@@ -23,6 +24,37 @@ const HEADER: f32 = 56.0;
 const HERO: f32 = 330.0;
 const VIEW_TRACK: Rect = Rect { x: 742.0, y: HEADER + 14.0, w: 264.0, h: 28.0 };
 const MODE_TRACK: Rect = Rect { x: 244.0, y: 9.0, w: 820.0, h: 38.0 };
+/// The preset bar: previous, the name (opens the browser), next.
+const PRESET_BAR: Rect = Rect { x: 352.0, y: HEADER + 14.0, w: 330.0, h: 28.0 };
+const PRESET_ARROW: f32 = 32.0;
+/// The preset browser: one column per space, over the display.
+const BROWSER: Rect = Rect { x: 20.0, y: HEADER + 66.0, w: WIDTH - 86.0, h: HERO - 80.0 };
+const BROWSER_HEAD: f32 = 32.0;
+const BROWSER_ROW: f32 = 24.0;
+
+/// Where the pointer is on the preset bar or in the browser.
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum PresetHit {
+    Previous,
+    Name,
+    Next,
+    Entry(usize),
+}
+
+/// The browser cell of each preset, in the order of [`presets::all`].
+fn browser_cells() -> Vec<Rect> {
+    let column = BROWSER.w / Mode::COUNT as f32;
+    let mut rows = [0usize; Mode::COUNT];
+    presets::all()
+        .iter()
+        .map(|p| {
+            let m = p.mode.index();
+            let row = rows[m];
+            rows[m] += 1;
+            Rect::new(BROWSER.x + column * m as f32 + 3.0, BROWSER.y + BROWSER_HEAD + BROWSER_ROW * row as f32, column - 6.0, BROWSER_ROW - 2.0)
+        })
+        .collect()
+}
 
 /// Paint a scene: shapes through the software rasteriser, lettering through
 /// Core Text. A text command's point is the centre line of its capitals.
@@ -202,6 +234,10 @@ pub struct Editor {
     shared: Arc<Shared>,
     /// Called after a gesture is queued, so the host can be asked to flush.
     pub notify: Option<Box<dyn Fn()>>,
+    /// When set, gestures go straight here instead of the queue. The VST3,
+    /// Audio Unit and AAX shells use it: they report to the host on the main
+    /// thread, and the host brings the value back to the engine.
+    pub sink: Option<Box<dyn Fn(GuiEvent)>>,
     controls: Vec<Control>,
     mode: Mode,
     values: [f32; PARAM_COUNT],
@@ -217,6 +253,10 @@ pub struct Editor {
     hold_db: f32,
     time: f32,
     view_hover: bool,
+    browser: bool,
+    preset_hover: Option<PresetHit>,
+    /// The preset whose values the parameters match right now, if any.
+    preset_match: Option<usize>,
 }
 
 impl Editor {
@@ -229,6 +269,7 @@ impl Editor {
         Self {
             shared,
             notify: None,
+            sink: None,
             controls: layout(mode),
             mode,
             values,
@@ -244,6 +285,9 @@ impl Editor {
             hold_db: -100.0,
             time: 0.0,
             view_hover: false,
+            browser: false,
+            preset_hover: None,
+            preset_match: None,
         }
     }
 
@@ -251,7 +295,26 @@ impl Editor {
         info().params[index].to_normalized(self.values[index])
     }
 
+    /// Show another instance's state (the shells recreate their engine when
+    /// the host reconfigures it). The display choice carries over.
+    pub fn rebind(&mut self, shared: Arc<Shared>) {
+        shared.view.store(self.shared.view.load(Ordering::Relaxed), Ordering::Relaxed);
+        shared.preset.store(self.shared.preset.load(Ordering::Relaxed), Ordering::Relaxed);
+        self.shared = shared;
+    }
+
+    /// A value the host reports while no engine is running to report it.
+    pub fn host_value(&mut self, index: usize, plain: f32) {
+        if let Some(p) = info().params.get(index) {
+            self.shared.set_value(index, p.clamp(plain));
+        }
+    }
+
     fn send(&self, e: GuiEvent) {
+        if let Some(sink) = &self.sink {
+            sink(e);
+            return;
+        }
         self.shared.queue.push(e);
         if let Some(f) = &self.notify {
             f();
@@ -295,7 +358,84 @@ impl Editor {
         (self.shared.view.load(Ordering::Relaxed) as usize).min(VIEW_NAMES.len() - 1)
     }
 
+    fn preset_hit(&self, x: f32, y: f32) -> Option<PresetHit> {
+        let at = Point::new(x, y);
+        if PRESET_BAR.contains(at) {
+            return Some(if x < PRESET_BAR.x + PRESET_ARROW {
+                PresetHit::Previous
+            } else if x > PRESET_BAR.right() - PRESET_ARROW {
+                PresetHit::Next
+            } else {
+                PresetHit::Name
+            });
+        }
+        if self.browser {
+            return browser_cells().iter().position(|r| r.contains(at)).map(PresetHit::Entry);
+        }
+        None
+    }
+
+    /// The preset the bar names: the one the values match, else the one last chosen.
+    fn preset_shown(&self) -> Option<usize> {
+        let chosen = (self.shared.preset.load(Ordering::Relaxed) as usize).checked_sub(1);
+        self.preset_match.or(chosen).filter(|i| *i < presets::all().len())
+    }
+
+    /// Set every parameter a preset differs in, each as its own gesture.
+    pub fn apply_preset(&mut self, index: usize) {
+        let Some(preset) = presets::all().get(index) else { return };
+        self.drag = None;
+        self.shared.preset.store(index as u32 + 1, Ordering::Relaxed);
+        for i in 0..PARAM_COUNT {
+            let v = info().params[i].clamp(preset.values[i]);
+            if v != self.values[i] {
+                self.send(GuiEvent::Begin(i));
+                self.set_value(i, v);
+                self.send(GuiEvent::End(i));
+            }
+        }
+        self.preset_match = Some(index);
+    }
+
+    /// Step to the next or previous preset; from none, to the first of the current space.
+    fn step_preset(&mut self, forward: bool) {
+        let all = presets::all();
+        if all.is_empty() {
+            return;
+        }
+        let next = match self.preset_shown() {
+            Some(i) if forward => (i + 1) % all.len(),
+            Some(i) => (i + all.len() - 1) % all.len(),
+            None => all.iter().position(|p| p.mode == self.mode).unwrap_or(0),
+        };
+        self.apply_preset(next);
+    }
+
     pub fn mouse_down(&mut self, x: f32, y: f32, clicks: u32) {
+        let hit = self.preset_hit(x, y);
+        if self.browser {
+            // The browser takes the click: an entry loads, anything else closes it.
+            self.browser = false;
+            match hit {
+                Some(PresetHit::Entry(i)) => self.apply_preset(i),
+                Some(PresetHit::Previous) => self.step_preset(false),
+                Some(PresetHit::Next) => self.step_preset(true),
+                _ => {}
+            }
+            return;
+        }
+        match hit {
+            Some(PresetHit::Previous) => return self.step_preset(false),
+            Some(PresetHit::Next) => return self.step_preset(true),
+            Some(PresetHit::Name) => {
+                self.browser = true;
+                if let Some(old) = self.hover.take() {
+                    self.mark(old);
+                }
+                return;
+            }
+            _ => {}
+        }
         if VIEW_TRACK.contains(Point::new(x, y)) {
             let seg = ((x - VIEW_TRACK.x - 3.0) / (VIEW_TRACK.w - 6.0) * VIEW_NAMES.len() as f32).floor();
             self.shared.view.store(seg.clamp(0.0, VIEW_NAMES.len() as f32 - 1.0) as u32, Ordering::Relaxed);
@@ -346,6 +486,10 @@ impl Editor {
             self.set_value(param, info().params[param].from_normalized(n));
             return;
         }
+        self.preset_hover = self.preset_hit(x, y);
+        if self.browser {
+            return;
+        }
         self.view_hover = VIEW_TRACK.contains(Point::new(x, y));
         let h = self.hit(x, y);
         if h != self.hover {
@@ -369,6 +513,9 @@ impl Editor {
     }
 
     pub fn wheel(&mut self, x: f32, y: f32, dy: f32) {
+        if self.browser {
+            return;
+        }
         let Some(i) = self.hit(x, y) else { return };
         let c = self.controls[i].clone();
         if let Kind::Knob { .. } = c.kind {
@@ -432,6 +579,20 @@ impl Editor {
             self.dirty.clear();
             self.cache_valid = false;
         }
+        // Name the preset the values match. Stepped values are exact; the rest
+        // may come back from a host through its normalised range.
+        let matches = |p: &sp9ce_engine::preset::Preset| {
+            (0..PARAM_COUNT).all(|i| {
+                let info = &info().params[i];
+                (p.values[i] - self.values[i]).abs() <= 1e-4 * (info.max - info.min).abs()
+            })
+        };
+        let chosen = (self.shared.preset.load(Ordering::Relaxed) as usize).checked_sub(1);
+        let all = presets::all();
+        self.preset_match = match chosen.filter(|i| all.get(*i).is_some_and(&matches)) {
+            Some(i) => Some(i),
+            None => all.iter().position(matches),
+        };
         let (out, _) = self.shared.take_peaks();
         for ch in 0..2 {
             let db = if out[ch] > 1e-5 { 20.0 * out[ch].log10() } else { -100.0 };
@@ -585,6 +746,67 @@ impl Editor {
         let _ = ink;
     }
 
+    /// The preset bar, and the browser when it is open.
+    fn paint_presets(&self, scene: &mut Scene) {
+        let pal = palette(self.mode.index());
+        let ink = Color(0xffe9eef7);
+        let dim = Color(0xff8b96ad);
+        let accent = hex(pal[1], 1.0);
+        let all = presets::all();
+        let bar = PRESET_BAR;
+        widgets::track(scene, bar);
+        if self.browser {
+            scene.stroke_round(bar, bar.h * 0.5, hex(pal[1], 0.8), 1.0);
+        }
+        let mid_y = bar.y + bar.h * 0.5;
+        for (hit, cx, dir) in [
+            (PresetHit::Previous, bar.x + PRESET_ARROW * 0.5 + 2.0, -1.0f32),
+            (PresetHit::Next, bar.right() - PRESET_ARROW * 0.5 - 2.0, 1.0),
+        ] {
+            let colour = if self.preset_hover == Some(hit) { ink } else { dim };
+            let tip = Point::new(cx + 3.0 * dir, mid_y);
+            scene.line(Point::new(cx - 3.0 * dir, mid_y - 5.0), tip, colour, 1.6);
+            scene.line(Point::new(cx - 3.0 * dir, mid_y + 5.0), tip, colour, 1.6);
+        }
+        let shown = self.preset_shown();
+        let label = match shown {
+            Some(i) if self.preset_match == Some(i) => all[i].name.clone(),
+            Some(i) => format!("{} *", all[i].name),
+            None => "PRESETS".to_string(),
+        };
+        let name_hover = self.preset_hover == Some(PresetHit::Name) || self.browser;
+        let colour = if shown.is_none() { dim } else if name_hover { accent.mix(Color(0xffffffff), 0.5) } else { ink };
+        scene.text(Point::new(bar.x + bar.w * 0.5, mid_y), label, colour, 11.5, true);
+        if !self.browser {
+            return;
+        }
+
+        let panel = BROWSER;
+        scene.fill_round(panel, 12.0, Color(0xf50b0f1d), Color(0xf5060811), true);
+        retro::glow_round(scene, panel, 12.0, hex(pal[1], 0.6), 1.0, 0.5, true);
+        let column = panel.w / Mode::COUNT as f32;
+        for m in 0..Mode::COUNT {
+            let x = panel.x + column * m as f32;
+            let colour = hex(palette(m)[1], if m == self.mode.index() { 1.0 } else { 0.75 });
+            scene.text(Point::new(x + 12.0, panel.y + 17.0), KEY_NAMES[m], colour, 9.5, false);
+            scene.line(Point::new(x + 10.0, panel.y + 27.5), Point::new(x + column - 10.0, panel.y + 27.5), hex(palette(m)[1], 0.35), 1.0);
+        }
+        for (i, cell) in browser_cells().iter().enumerate() {
+            let tint = hex(palette(all[i].mode.index())[1], 1.0);
+            let current = shown == Some(i);
+            let hovered = self.preset_hover == Some(PresetHit::Entry(i));
+            if current || hovered {
+                let a = if hovered { 0.22 } else { 0.12 };
+                scene.fill_round(*cell, 6.0, tint.with_alpha(a), tint.with_alpha(a * 0.6), true);
+            }
+            if current {
+                scene.stroke_round(*cell, 6.0, tint.with_alpha(0.7), 1.0);
+            }
+            let colour = if hovered || current { Color(0xffffffff) } else { ink.with_alpha(0.86) };
+            scene.text(Point::new(cell.x + 9.0, cell.y + cell.h * 0.5), all[i].name.clone(), colour, 10.0, false);
+        }
+    }
+
     /// Render one frame at the given backing scale and return it.
     pub fn render(&mut self, scale: f32) -> &Framebuffer {
         let (pw, ph) = ((WIDTH * scale).round() as usize, (HEIGHT * scale).round() as usize);
@@ -625,6 +847,11 @@ impl Editor {
         let mut overlay = Scene::new();
         self.paint_overlay(&mut overlay, scale);
         replay(&mut self.frame, &overlay, scale);
+        // In a pass of its own: lettering is drawn after the shapes of its
+        // pass, so the display's marks would show through an open browser.
+        let mut top = Scene::new();
+        self.paint_presets(&mut top);
+        replay(&mut self.frame, &top, scale);
         &self.frame
     }
 }

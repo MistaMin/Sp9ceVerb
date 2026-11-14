@@ -1,0 +1,13 @@
+# Snare: 5 to 25 ms of pre-delay keeps the hit sharp; decay under a second clears the next hit.
+name = Snare Room
+mode = room
+Mix = 0.3
+Predelay = 0.012
+Diffusion = 0.75
+Shape = 6
+ReverbTime = 0.9
+BassXover = 300
+BassRt = 0.7
+HfDamp = 8500
+RoomScale = 1.2
+TailPredelay = 0.02

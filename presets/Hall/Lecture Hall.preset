@@ -1,0 +1,13 @@
+# Lecture halls sit near 1.0 to 1.5 s, with strong early reflections for speech.
+name = Lecture Hall
+mode = hall
+Mix = 0.2
+Predelay = 0.01
+Diffusion = 0.6
+Shape = 8
+ReverbTime = 1.1
+BassRt = 1.0
+HfDamp = 5500
+TapSlope = -0.5
+Ref1Level = 1.0
+Ref2Level = 0.8

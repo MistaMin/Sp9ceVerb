@@ -1,0 +1,13 @@
+# The plate with its two echoes pushed up.
+name = Plate Slap
+mode = plate
+Mix = 0.25
+Predelay = 0.0
+Diffusion = 0.85
+Shape = 4
+ReverbTime = 1.4
+HfDamp = 7000
+EchoLTime = 0.11
+EchoRTime = 0.145
+EchoLFb = 0.45
+EchoRFb = 0.4

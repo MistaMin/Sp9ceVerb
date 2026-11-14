@@ -7,8 +7,8 @@ pub mod clap_host;
 pub mod cocoa;
 pub mod gui;
 pub mod plugin;
+pub mod presets;
+pub mod shell_host;
 
 pub use plugin::{OnePlugin, Shared};
 
-// VST3, Audio Unit and AAX shells link this ABI (no editor in those shells).
-openplugin::targets::export_shell!(plugin::OnePlugin);

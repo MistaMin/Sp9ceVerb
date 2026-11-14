@@ -6,3 +6,4 @@
 /tools/logs
 __pycache__/
 .DS_Store
+/scripts/*.local.env

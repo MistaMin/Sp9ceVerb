@@ -19,6 +19,11 @@ by the output, and an orbit view with the source in the middle.
 - `plugin` (`sp9ceverb`): the plugin on OpenPluginSDK, the GoodLookinDri editor,
   the CLAP entry with its editor bridge, and the standalone app.
 - `scripts/build.sh`: builds and bundles `dist/Sp9ceVerb.clap` and `dist/Sp9ceVerb.app`.
+- `scripts/build_shells.sh`: builds `dist/Sp9ceVerb.vst3`, `.component` and `.aaxplugin`
+  on OpenPluginSDK's native shells. Needs the VST3 SDK, AudioUnitSDK and the AAX SDK.
+- `scripts/sign_aax.sh`: signs the AAX for Pro Tools (Developer ID and PACE) into `dist/signed/`.
+- `presets/`: factory presets as text files, one folder per space (`presets/README.md`).
+  They are built into the plugin and chosen from the preset bar above the display.
 - `tools/`: the measurement runner and the level calibration.
 - `docs/PROVENANCE.md`: where the design came from, stated plainly.
 
@@ -44,7 +49,8 @@ cd plugin && . ../scripts/sdk_env.sh && cargo_sdk test --release
 |---|---|
 | CLAP | built, with the editor. Passes clap-validator and the REAPER suite |
 | Standalone (macOS) | built. Plays a demo pattern; `--input` processes the input device, `--silent` opens no audio device |
-| VST3, AU, AAX | not built. The plugin exports the SDK shell interface, but the SDK's shells for these formats have no editor |
+| VST3, AU (macOS) | built by `scripts/build_shells.sh`, with the editor. The AU passes `auval` |
+| AAX (macOS) | built by `scripts/build_shells.sh`, with the editor. It links the Avid SDK, so the binary is not an MIT-only artifact, and Pro Tools only loads it once signed (`scripts/sign_aax.sh`) |
 
 macOS on Apple silicon only: the editor window and its lettering use Cocoa and Core Text.
 

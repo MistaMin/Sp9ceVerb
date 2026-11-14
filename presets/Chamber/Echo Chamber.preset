@@ -1,0 +1,12 @@
+# A hard-walled chamber room: dense at once, no distinct early pattern.
+name = Echo Chamber
+mode = chamber
+Mix = 0.25
+Predelay = 0.008
+Diffusion = 0.9
+Shape = 4
+ReverbTime = 1.6
+BassRt = 1.0
+HfDamp = 7000
+EchoLFb = 0.0
+EchoRFb = 0.0

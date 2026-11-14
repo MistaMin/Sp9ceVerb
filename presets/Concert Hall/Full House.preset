@@ -1,0 +1,13 @@
+# An audience absorbs: the same hall is shorter and duller when occupied.
+name = Full House
+mode = concert_hall
+Mix = 0.3
+Predelay = 0.018
+Diffusion = 0.8
+Shape = 6
+ReverbTime = 1.6
+BassRt = 1.15
+HfDamp = 4500
+Width = 1.1
+ChorusDepth = 0.25
+Definition = 0.7

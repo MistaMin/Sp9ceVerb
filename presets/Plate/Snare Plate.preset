@@ -1,0 +1,12 @@
+# Damper close to the plate: short and dense.
+name = Snare Plate
+mode = plate
+Mix = 0.3
+Predelay = 0.012
+Diffusion = 0.95
+Shape = 2
+ReverbTime = 1.0
+BassRt = 0.9
+HfDamp = 9000
+EchoLFb = 0.0
+EchoRFb = 0.0

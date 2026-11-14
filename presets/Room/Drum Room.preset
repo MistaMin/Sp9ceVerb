@@ -1,0 +1,14 @@
+# A live room: short, bright, early energy forward.
+name = Drum Room
+mode = room
+Mix = 0.25
+Predelay = 0.004
+Diffusion = 0.6
+Shape = 8
+ReverbTime = 0.7
+BassRt = 0.9
+HfDamp = 10000
+Width = 1.2
+Pattern = 2
+RoomScale = 1.0
+TailPredelay = 0.012

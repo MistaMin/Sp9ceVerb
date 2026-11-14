@@ -1,0 +1,13 @@
+# The early pattern played backwards, rising into the dry sound.
+name = Reverse Swell
+mode = room
+Mix = 0.4
+Predelay = 0.0
+Diffusion = 0.85
+Shape = 9
+ReverbTime = 0.6
+HfDamp = 9000
+Width = 1.4
+Pattern = 3
+Reverse = 1
+RoomScale = 1.3

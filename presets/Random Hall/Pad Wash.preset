@@ -1,0 +1,14 @@
+# Very long and slow to build, to sit under sustained sounds.
+name = Pad Wash
+mode = random_hall
+Mix = 0.45
+Predelay = 0.04
+Diffusion = 1.0
+Shape = 1
+ReverbTime = 8.0
+BassXover = 200
+BassRt = 0.9
+HfDamp = 5000
+Width = 1.6
+Spin = 0.8
+Wander = 0.8

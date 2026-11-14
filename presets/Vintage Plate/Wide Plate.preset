@@ -1,0 +1,16 @@
+# Reflections spread apart and one flipped in polarity, for width.
+name = Wide Plate
+mode = vintage_plate
+Mix = 0.3
+Predelay = 0.02
+Diffusion = 0.9
+Shape = 4
+ReverbTime = 1.9
+BassRt = 1.3
+HfDamp = 5000
+Width = 1.7
+RefLDelay = 0.011
+RefRDelay = 0.027
+RefRPolarity = 1
+EchoLFb = 0.0
+EchoRFb = 0.0

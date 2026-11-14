@@ -1,0 +1,11 @@
+# Chorus off and a short tail: mostly the stage reflections.
+name = Dry Stage
+mode = concert_hall
+Mix = 0.2
+Predelay = 0.008
+Diffusion = 0.65
+Shape = 10
+ReverbTime = 1.0
+HfDamp = 7000
+Chorus = 0
+Definition = 1.0

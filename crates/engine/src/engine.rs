@@ -25,6 +25,10 @@ const BUILD_SPAN: f32 = 0.105;
 const REVERSE_SPAN: f32 = 0.5;
 const INPUT_LINE_SECONDS: f32 = 1.6;
 const FDN_LINE_SECONDS: f32 = 0.5;
+/// Input beyond +80 dBFS is clipped before it reaches a feedback loop.
+const INPUT_LIMIT: f32 = 1.0e4;
+/// Room for the longest plateau line at the largest Ambience size.
+const PLATEAU_LINE_SECONDS: f32 = 0.5;
 const ECHO_LINE_SECONDS: f32 = 1.25;
 
 #[derive(Clone, Copy, PartialEq)]
@@ -578,7 +582,7 @@ impl Engine {
         self.echo_l = Delay::new(n(ECHO_LINE_SECONDS));
         self.echo_r = Delay::new(n(ECHO_LINE_SECONDS));
         self.fdn = std::array::from_fn(|_| Delay::new(n(FDN_LINE_SECONDS)));
-        self.plateau = std::array::from_fn(|_| Delay::new(n(0.25)));
+        self.plateau = std::array::from_fn(|_| Delay::new(n(PLATEAU_LINE_SECONDS)));
         self.ap_l = std::array::from_fn(|_| Allpass { line: Delay::new(n(0.02)), len: 1 });
         self.ap_r = std::array::from_fn(|_| Allpass { line: Delay::new(n(0.02)), len: 1 });
         self.revoice();
@@ -853,7 +857,7 @@ impl Engine {
         }
 
         // ---- feedback lines ----
-        let fdn_scale = scale.clamp(0.5, 3.0);
+        let fdn_scale = scale.clamp(0.5, if mode == Mode::Ambience { params::AMB_SIZE_MAX } else { 3.0 });
         let hold = &mut self.hold;
         *hold += 0.2 * (if hold_on { 1.0 } else { 0.0 } - *hold);
         if (*hold - if hold_on { 1.0 } else { 0.0 }).abs() < 1.0e-4 {
@@ -867,7 +871,11 @@ impl Engine {
         let character = self.params[P::AmbCharacter.index()];
         let tone = self.params[P::AmbTone.index()];
         let ambience = mode == Mode::Ambience;
-        self.amb_inner = 0.15 + 0.15 * character;
+        // Past 2x the room's own decay grows with it, as a larger room with the
+        // same walls rings longer. Without that its lines would be heard once
+        // each, as separate echoes. Up to 2x the decay is Character alone.
+        let grow = if ambience { (fdn_scale * 0.5).max(1.0) } else { 1.0 };
+        self.amb_inner = (0.15 + 0.15 * character) * grow;
         let rt_fdn = if ambience { self.amb_inner } else { rt };
         self.rt += a_rt * (rt_fdn - self.rt);
         self.bass_rt += a_rt * (self.params[P::BassRt.index()] - self.bass_rt);
@@ -900,7 +908,7 @@ impl Engine {
         if ambience {
             let plateau_rt = rt.max(self.amb_inner * 1.5);
             for j in 0..PLATEAU {
-                let len = (PLATEAU_MS[j] * 0.001 * fs * fdn_scale).round().clamp(2.0, 0.24 * fs);
+                let len = (PLATEAU_MS[j] * 0.001 * fs * fdn_scale).round().clamp(2.0, (PLATEAU_LINE_SECONDS - 0.01) * fs);
                 self.plateau_len[j] = len as usize;
                 self.plateau_g[j] = 10.0f32.powf(-3.0 * (len / fs) / plateau_rt);
             }
@@ -983,8 +991,12 @@ impl Engine {
             }
             let c = &self.cur;
 
-            let xl = in_l[s];
-            let xr = in_r[s];
+            // A non-finite input sample would circulate in the echo and diffuser
+            // loops for good, and an absurd one would overflow there. Ordinary
+            // input passes through unchanged.
+            let clean = |x: f32| if x.is_finite() { x.clamp(-INPUT_LIMIT, INPUT_LIMIT) } else { 0.0 };
+            let xl = clean(in_l[s]);
+            let xr = clean(in_r[s]);
             self.in_l.write(xl);
             self.in_r.write(xr);
 

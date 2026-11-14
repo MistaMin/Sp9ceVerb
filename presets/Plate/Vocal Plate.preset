@@ -1,0 +1,13 @@
+# A moderately damped plate behind the voice; no echoes.
+name = Vocal Plate
+mode = plate
+Mix = 0.2
+Predelay = 0.03
+Diffusion = 0.9
+Shape = 3
+ReverbTime = 1.8
+BassXover = 300
+BassRt = 1.1
+HfDamp = 8000
+EchoLFb = 0.0
+EchoRFb = 0.0

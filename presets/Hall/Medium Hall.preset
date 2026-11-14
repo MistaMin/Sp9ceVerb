@@ -1,0 +1,10 @@
+# A general hall in the 1.4 to 2.0 s band, bass slightly longer for warmth.
+name = Medium Hall
+mode = hall
+Mix = 0.25
+Predelay = 0.018
+Diffusion = 0.75
+Shape = 6
+ReverbTime = 1.8
+BassRt = 1.2
+HfDamp = 6500

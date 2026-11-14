@@ -1,0 +1,14 @@
+# Damper backed off: an undamped steel plate rings for around five seconds in the mids.
+name = Open Plate
+mode = plate
+Mix = 0.3
+Predelay = 0.02
+Diffusion = 0.95
+Shape = 2
+ReverbTime = 4.5
+BassXover = 400
+BassRt = 1.4
+HfDamp = 5500
+Width = 1.3
+EchoLFb = 0.0
+EchoRFb = 0.0

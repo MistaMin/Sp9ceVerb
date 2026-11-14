@@ -1,0 +1,10 @@
+# Just enough room to join close-miked sources.
+name = Invisible Glue
+mode = ambience
+Mix = 0.15
+Predelay = 0.0
+Diffusion = 0.8
+ReverbTime = 0.5
+AmbSize = 1.0
+AmbTone = 0.5
+AmbCharacter = 0.4

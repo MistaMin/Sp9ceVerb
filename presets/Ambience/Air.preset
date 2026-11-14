@@ -1,0 +1,11 @@
+# Larger, brighter and room-heavy: space around a dry source.
+name = Air
+mode = ambience
+Mix = 0.2
+Predelay = 0.005
+Diffusion = 0.9
+ReverbTime = 0.8
+Width = 1.4
+AmbSize = 1.5
+AmbTone = 0.75
+AmbCharacter = 0.7

@@ -1,0 +1,11 @@
+# The ambience at four times its size: the air of a large empty stage, still without a distinct tail.
+name = Soundstage
+mode = ambience
+Mix = 0.2
+Predelay = 0.008
+Diffusion = 0.9
+ReverbTime = 1.2
+Width = 1.3
+AmbSize = 4.0
+AmbTone = 0.55
+AmbCharacter = 0.6

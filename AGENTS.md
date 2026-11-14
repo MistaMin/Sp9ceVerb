@@ -11,13 +11,19 @@ Sp9ceVerb, a reverb plugin with nine spaces on one engine. CLAP id
 
 - `crates/engine`: the DSP (`sp9ce-engine`). `params.rs` is the single source
   of truth for parameter names, ranges and defaults; `engine.rs` is the signal
-  path. `forbid(unsafe_code)`, no dependencies.
+  path. `preset.rs` parses the text files in `presets/`. `forbid(unsafe_code)`,
+  no dependencies.
 - `plugin`: `plugin.rs` implements `openplugin::Plugin` and the lock-free state
   shared with the editor. `gui/` is the editor (layout and input in `mod.rs`,
   the three displays in `visual.rs`, controls in `widgets.rs`, Core Text
   lettering in `text.rs`). `cocoa.rs` is the `NSView`. `clap_host.rs` exports
   `clap_entry`: the SDK's CLAP adapter does the audio side, and four hooks on
   its plugin object add the `clap.gui` extension and carry editor gestures.
+  `presets.rs` holds the files of `presets/`, embedded by `build.rs`; the
+  editor's preset bar and browser load them as ordinary parameter gestures.
+  `shell_host.rs` is the C ABI the SDK's VST3, AU and AAX shells link:
+  `op_shell_*` (audio, forwarded to the SDK), `op_shell_tail_seconds`, and
+  `op_editor_*` (the same editor, gestures sent to the host on the main thread).
 
 ## Constraints
 
@@ -30,6 +36,16 @@ Sp9ceVerb, a reverb plugin with nine spaces on one engine. CLAP id
   by `scripts/sdk_env.sh`, and `scripts/build.sh` remaps build paths.
 - Do not copy code, tables or presets from other reverbs. Read
   `docs/PROVENANCE.md` before changing the engine.
+- The reported tail (`plugin::tail_seconds`, one function for every format)
+  must cover what the engine really rings: the low-band decay, the plate and
+  chamber echoes, and infinity for Infinite and for Chaos above zero. Change
+  it together with anything that lengthens the ring-out.
+- Never rebuild, reinstall or re-sign while a host suite or validator is
+  running: it tests the installed bundles. Use `--check-only` for the editor
+  checks.
+- Who does what: the agent that writes the plugin code does not run plugin
+  QA, and the agent that runs the tests and QA does not edit plugin code,
+  the SDK shells or the build scripts.
 - No commits without the user's approval.
 
 ## Build and test
@@ -37,6 +53,10 @@ Sp9ceVerb, a reverb plugin with nine spaces on one engine. CLAP id
 ```sh
 cargo test --workspace --release
 scripts/build.sh [--install]
+scripts/build_shells.sh [--install] [--check]   # VST3, AU, AAX; --check clicks each editor's preset arrow
+scripts/build_shells.sh --check-only            # the same checks on what is already built; builds nothing
+auval -v aufx Sp9v OpGd
+scripts/sign_aax.sh [--install]         # settings in scripts/signing.local.env (untracked)
 cd plugin && . ../scripts/sdk_env.sh && cargo_sdk test --release
 clap-validator validate dist/Sp9ceVerb.clap
 ```

@@ -1,0 +1,13 @@
+# Tile reflects the highs, so the tail stays bright and the lows are shorter.
+name = Tiled Chamber
+mode = chamber
+Mix = 0.25
+Predelay = 0.006
+Diffusion = 0.85
+Shape = 5
+ReverbTime = 2.4
+BassRt = 0.85
+HfDamp = 11000
+Width = 1.2
+EchoLFb = 0.0
+EchoRFb = 0.0

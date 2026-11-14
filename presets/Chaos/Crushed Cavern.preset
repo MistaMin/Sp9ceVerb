@@ -1,0 +1,16 @@
+# Decimation in the loop of a long dark space, drifting down.
+name = Crushed Cavern
+mode = chaos
+Mix = 0.4
+Predelay = 0.03
+Diffusion = 0.85
+ReverbTime = 6.0
+BassRt = 1.3
+HfDamp = 4000
+Width = 1.4
+Chaos = 0.9
+ChaosDrive = 0.7
+ChaosGain = 1.0
+ChaosShift = -0.5
+ChaosScramble = 0.6
+ChaosNonlin = 3

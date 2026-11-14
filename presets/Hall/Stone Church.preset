@@ -1,0 +1,18 @@
+# Churches run from 2 s upward; stone keeps the lows and the air takes the highs.
+name = Stone Church
+mode = hall
+Mix = 0.3
+Predelay = 0.03
+Diffusion = 0.8
+Shape = 5
+ReverbTime = 3.5
+BassXover = 200
+BassRt = 1.3
+HfDamp = 4500
+Width = 1.3
+Spin = 0.2
+TapSlope = 0.3
+Ref1Delay = 0.03
+Ref2Delay = 0.062
+Ref3Delay = 0.105
+Ref4Delay = 0.17

@@ -91,6 +91,8 @@ pub struct Shared {
     pub queue: GuiQueue,
     /// Which display the editor shows; kept here so reopening the editor keeps it.
     pub view: AtomicU32,
+    /// The preset last chosen in the editor, as its index plus one; 0 is none.
+    pub preset: AtomicU32,
 }
 
 impl Shared {
@@ -104,6 +106,7 @@ impl Shared {
             peak_in: AtomicU32::new(0),
             queue: GuiQueue::new(),
             view: AtomicU32::new(0),
+            preset: AtomicU32::new(0),
         })
     }
 
@@ -177,7 +180,7 @@ pub fn info() -> &'static PluginInfo {
             }
             if matches!(
                 id,
-                ParamId::ReverbTime | ParamId::BassXover | ParamId::BassRt | ParamId::HfDamp | ParamId::RoomScale
+                ParamId::ReverbTime | ParamId::BassXover | ParamId::BassRt | ParamId::HfDamp | ParamId::RoomScale | ParamId::AmbSize
             ) {
                 p = p.with_taper(Taper::Log);
             }
@@ -205,6 +208,46 @@ static HANDOFF: Mutex<Option<Arc<Shared>>> = Mutex::new(None);
 
 pub fn take_handoff() -> Option<Arc<Shared>> {
     HANDOFF.lock().ok().and_then(|mut g| g.take())
+}
+
+/// Room for the pre-delays, the reversed early pattern and the last decibels.
+const TAIL_MARGIN: f64 = 1.5;
+/// An echo is counted until it is 60 dB down.
+const ECHO_FLOOR_LN: f64 = -6.907_755_278_982_137; // ln(0.001)
+
+/// How long the output rings after the input stops, in seconds, for a set of
+/// plain parameter values. Infinity when it never ends: Infinite holds the
+/// tail, and Chaos above zero sustains itself.
+///
+/// The decay is the reverb time in the low band (Bass RT lengthens it). The
+/// plate and chamber echoes repeat with their own feedback and can outlast the
+/// reverb, so the slower of the two is added in front of the decay.
+pub fn tail_seconds(value: impl Fn(ParamId) -> f32) -> f64 {
+    let mode = Mode::from_index(value(ParamId::Mode).round() as usize);
+    let has = |id: ParamId| params::extras(mode).iter().any(|s| s.id == id);
+    if has(ParamId::Infinite) && value(ParamId::Infinite) > 0.5 {
+        return f64::INFINITY;
+    }
+    if mode == Mode::Chaos && value(ParamId::Chaos) > 0.0 {
+        return f64::INFINITY;
+    }
+    let decay = (value(ParamId::ReverbTime) * value(ParamId::BassRt).max(1.0)) as f64;
+    let mut echoes = 0.0f64;
+    if has(ParamId::EchoLFb) {
+        for (time, feedback) in [(ParamId::EchoLTime, ParamId::EchoLFb), (ParamId::EchoRTime, ParamId::EchoRFb)] {
+            let fb = (value(feedback) as f64).min(0.95);
+            if fb > 0.001 {
+                echoes = echoes.max(value(time) as f64 * (ECHO_FLOOR_LN / fb.ln()));
+            }
+        }
+    }
+    echoes + decay + TAIL_MARGIN
+}
+
+/// The longest finite tail the parameter ranges allow.
+pub fn longest_tail_seconds() -> f64 {
+    let max = |id: ParamId| params::range(id).1 as f64;
+    max(ParamId::EchoLTime) * (ECHO_FLOOR_LN / 0.95f64.ln()) + max(ParamId::ReverbTime) * max(ParamId::BassRt) + TAIL_MARGIN
 }
 
 pub struct OnePlugin {
@@ -332,12 +375,13 @@ impl Plugin for OnePlugin {
     }
 
     fn tail_samples(&self) -> usize {
-        let rt = self.engine.param(ParamId::ReverbTime) * self.engine.param(ParamId::BassRt).max(1.0);
-        ((rt + 1.5) * self.sample_rate) as usize
+        // The longest finite tail stands in for an endless one here; `tail` says which it is.
+        let seconds = tail_seconds(|id| self.engine.param(id)).min(longest_tail_seconds());
+        (seconds * self.sample_rate as f64) as usize
     }
 
     fn tail(&self) -> Tail {
-        if self.engine.param(ParamId::Infinite) > 0.5 {
+        if tail_seconds(|id| self.engine.param(id)).is_infinite() {
             Tail::Infinite
         } else {
             Tail::Finite(self.tail_samples().min(u32::MAX as usize) as u32)

@@ -1,0 +1,12 @@
+# A stairwell-sized chamber.
+name = Small Chamber
+mode = chamber
+Mix = 0.2
+Predelay = 0.004
+Diffusion = 0.8
+Shape = 6
+ReverbTime = 0.8
+BassRt = 0.95
+HfDamp = 8000
+EchoLFb = 0.0
+EchoRFb = 0.0

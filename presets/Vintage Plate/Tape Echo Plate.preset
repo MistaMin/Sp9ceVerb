@@ -1,0 +1,14 @@
+# Slow echoes feeding a dark plate.
+name = Tape Echo Plate
+mode = vintage_plate
+Mix = 0.3
+Predelay = 0.0
+Diffusion = 0.85
+Shape = 4
+ReverbTime = 1.6
+BassRt = 1.3
+HfDamp = 4000
+EchoLTime = 0.28
+EchoRTime = 0.375
+EchoLFb = 0.5
+EchoRFb = 0.45

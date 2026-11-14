@@ -1,0 +1,14 @@
+# An intimate chamber-music hall: about 1.4 s, first reflections inside 20 ms.
+name = Recital Hall
+mode = hall
+Mix = 0.25
+Predelay = 0.012
+Diffusion = 0.75
+Shape = 6
+ReverbTime = 1.4
+BassRt = 1.1
+HfDamp = 7000
+Ref1Delay = 0.012
+Ref2Delay = 0.024
+Ref3Delay = 0.041
+Ref4Delay = 0.066

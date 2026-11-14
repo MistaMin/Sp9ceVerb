@@ -1,0 +1,13 @@
+# Speech rooms sit near 0.4 to 0.6 s with plain hard walls.
+name = Classroom
+mode = room
+Mix = 0.2
+Predelay = 0.006
+Diffusion = 0.5
+Shape = 7
+ReverbTime = 0.55
+BassRt = 1.1
+HfDamp = 5500
+Pattern = 5
+RoomScale = 1.5
+TailPredelay = 0.018

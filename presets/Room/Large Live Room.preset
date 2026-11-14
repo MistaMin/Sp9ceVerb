@@ -1,0 +1,14 @@
+# A big tracking room: the walls are further away, so the tail arrives later.
+name = Large Live Room
+mode = room
+Mix = 0.25
+Predelay = 0.01
+Diffusion = 0.7
+Shape = 6
+ReverbTime = 1.2
+BassRt = 1.1
+HfDamp = 7500
+Width = 1.3
+Pattern = 4
+RoomScale = 2.2
+TailPredelay = 0.03

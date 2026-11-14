@@ -1,0 +1,12 @@
+# Opera favours clarity for the text: shorter decay, more early energy.
+name = Opera House
+mode = concert_hall
+Mix = 0.25
+Predelay = 0.015
+Diffusion = 0.7
+Shape = 8
+ReverbTime = 1.3
+BassRt = 1.1
+HfDamp = 5500
+ChorusDepth = 0.2
+Definition = 0.9

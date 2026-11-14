@@ -8,6 +8,7 @@
 
 pub mod engine;
 pub mod params;
+pub mod preset;
 
 pub use engine::Engine;
 pub use params::{Mode, ParamId, ParamSpec};

@@ -1,5 +1,5 @@
 //! Renders editor frames to PNG without a window, with a synthetic signal
-//! running through the engine. Usage: sp9ceverb-preview <out.png> [mode 0..8] [scale] [seconds] [chaos] [view 0..2]
+//! running through the engine. Usage: sp9ceverb-preview <out.png> [mode 0..8] [scale] [seconds] [chaos] [view 0..2] [browser 0|1] [preset index]
 use openplugin::prelude::Plugin;
 use sp9ceverb::gui::{Editor, HEIGHT, WIDTH};
 use sp9ceverb::OnePlugin;
@@ -107,6 +107,16 @@ fn main() {
         }
         if f == frames - 2 {
             editor.mouse_up();
+        }
+        // Optional: load a preset by index, then open the browser.
+        if f == frames - 1 {
+            if let Some(i) = args.get(8).and_then(|s| s.parse::<usize>().ok()) {
+                editor.apply_preset(i);
+            }
+            if args.get(7).is_some_and(|s| s == "1") {
+                editor.mouse_down(500.0, 84.0, 1);
+                editor.mouse_move(160.0, 170.0);
+            }
         }
         let t0 = std::time::Instant::now();
         let fb = editor.render(scale);
