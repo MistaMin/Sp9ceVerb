@@ -40,6 +40,11 @@ Sp9ceVerb, a reverb plugin with nine spaces on one engine. CLAP id
   must cover what the engine really rings: the low-band decay, the plate and
   chamber echoes, and infinity for Infinite and for Chaos above zero. Change
   it together with anything that lengthens the ring-out.
+- Shell trace, for a host that goes silent: create `sp9ceverb-trace.on` in the
+  temporary folder before the plugin first processes, and the VST3, AU and
+  AAX append what the host is doing (calls, input and output peaks, engine
+  values) to `sp9ceverb-trace.log` there while the editor is open
+  (`shell_host.rs`, `trace`). It is off otherwise.
 - Never rebuild, reinstall or re-sign while a host suite or validator is
   running: it tests the installed bundles. Use `--check-only` for the editor
   checks.

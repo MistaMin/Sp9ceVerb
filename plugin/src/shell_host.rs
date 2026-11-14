@@ -16,6 +16,7 @@
 use crate::plugin::{take_handoff, OnePlugin, Shared};
 use openplugin::targets::shell::{self, OpParamDesc, OpShellInfo, ShellInstance};
 use std::ffi::c_void;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
 /// Live shell instances and their shared state. Message thread only.
@@ -67,6 +68,7 @@ pub unsafe extern "C" fn op_shell_create(sample_rate: f64, max_block: u32, chann
     let _ = take_handoff(); // drop anything stale
     let instance = shell::create::<OnePlugin>(sample_rate, max_block, channels) as *mut c_void;
     let shared = take_handoff();
+    trace::CREATES.fetch_add(1, Ordering::Relaxed);
     if !instance.is_null() {
         if let (Some(shared), Ok(mut list)) = (shared, INSTANCES.lock()) {
             list.push((instance as usize, shared));
@@ -81,11 +83,13 @@ pub unsafe extern "C" fn op_shell_destroy(instance: *mut c_void) {
         list.retain(|(key, _)| *key != instance as usize);
     }
     shell::destroy(instance as *mut ShellInstance);
+    trace::DESTROYS.fetch_add(1, Ordering::Relaxed);
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn op_shell_reset(instance: *mut c_void) {
     shell::reset(instance as *mut ShellInstance);
+    trace::RESETS.fetch_add(1, Ordering::Relaxed);
 }
 
 #[no_mangle]
@@ -122,7 +126,112 @@ pub unsafe extern "C" fn op_shell_process(
     out_right: *mut f32,
     frames: u32,
 ) -> u32 {
-    shell::process(instance as *mut ShellInstance, in_left, in_right, out_left, out_right, frames)
+    if !trace::on() {
+        return shell::process(instance as *mut ShellInstance, in_left, in_right, out_left, out_right, frames);
+    }
+    let peak = |p: *const f32| {
+        if p.is_null() {
+            return 0.0f32;
+        }
+        std::slice::from_raw_parts(p, frames as usize).iter().fold(0.0f32, |m, v| if v.is_finite() { m.max(v.abs()) } else { f32::INFINITY })
+    };
+    let input = peak(in_left).max(peak(in_right));
+    let ok = shell::process(instance as *mut ShellInstance, in_left, in_right, out_left, out_right, frames);
+    trace::block(instance as usize, frames, ok != 0, input, peak(out_left).max(peak(out_right)));
+    ok
+}
+
+/// A diagnostic trace of what the host does with the shell, off unless the
+/// file `sp9ceverb-trace.on` exists in the temporary folder when the first
+/// block is processed. The audio thread only updates counters; a main-thread
+/// caller writes them to `sp9ceverb-trace.log` there, a few times a second.
+pub mod trace {
+    use super::*;
+    use std::io::Write;
+    use std::sync::atomic::{AtomicU32, AtomicU64, AtomicU8};
+
+    pub static CREATES: AtomicU32 = AtomicU32::new(0);
+    pub static DESTROYS: AtomicU32 = AtomicU32::new(0);
+    pub static RESETS: AtomicU32 = AtomicU32::new(0);
+    static STATE: AtomicU8 = AtomicU8::new(0); // 0 unknown, 1 off, 2 on
+    static BLOCKS: AtomicU32 = AtomicU32::new(0);
+    static FAILED: AtomicU32 = AtomicU32::new(0);
+    static FRAMES: AtomicU32 = AtomicU32::new(0);
+    static PEAK_IN: AtomicU32 = AtomicU32::new(0);
+    static PEAK_OUT: AtomicU32 = AtomicU32::new(0);
+    static INSTANCE: AtomicUsize = AtomicUsize::new(0);
+    static LAST_WRITE: AtomicU64 = AtomicU64::new(0);
+
+    pub fn on() -> bool {
+        match STATE.load(Ordering::Relaxed) {
+            2 => true,
+            1 => false,
+            _ => {
+                // Once, on whichever thread asks first. A file check is not for
+                // the audio thread, but this is a diagnostic switch.
+                let found = std::env::temp_dir().join("sp9ceverb-trace.on").exists();
+                STATE.store(if found { 2 } else { 1 }, Ordering::Relaxed);
+                found
+            }
+        }
+    }
+
+    fn raise(slot: &AtomicU32, v: f32) {
+        if v > f32::from_bits(slot.load(Ordering::Relaxed)) {
+            slot.store(v.to_bits(), Ordering::Relaxed);
+        }
+    }
+
+    pub fn block(instance: usize, frames: u32, ok: bool, input: f32, output: f32) {
+        BLOCKS.fetch_add(1, Ordering::Relaxed);
+        if !ok {
+            FAILED.fetch_add(1, Ordering::Relaxed);
+        }
+        FRAMES.store(frames, Ordering::Relaxed);
+        INSTANCE.store(instance, Ordering::Relaxed);
+        raise(&PEAK_IN, input);
+        raise(&PEAK_OUT, output);
+    }
+
+    /// Append one line if the trace is on and a quarter second has passed. Main thread.
+    pub fn write(note: &str) {
+        if !on() {
+            return;
+        }
+        let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0);
+        if now.saturating_sub(LAST_WRITE.load(Ordering::Relaxed)) < 250 {
+            return;
+        }
+        LAST_WRITE.store(now, Ordering::Relaxed);
+        let instance = INSTANCE.load(Ordering::Relaxed);
+        let value = |id: sp9ce_engine::ParamId| {
+            // What the engine side holds, not what the host last reported.
+            if instance == 0 || shared_for(instance as *const c_void).is_none() {
+                f32::NAN
+            } else {
+                unsafe { shell::get_plain(instance as *const ShellInstance, id.index() as u32) }
+            }
+        };
+        use sp9ce_engine::ParamId as P;
+        let line = format!(
+            "{now} {note} creates={} destroys={} resets={} blocks={} failed={} frames={} peak_in={:.5} peak_out={:.5} mode={} mix={:.3} level={:.3} rt={:.3}\n",
+            CREATES.load(Ordering::Relaxed),
+            DESTROYS.load(Ordering::Relaxed),
+            RESETS.load(Ordering::Relaxed),
+            BLOCKS.swap(0, Ordering::Relaxed),
+            FAILED.swap(0, Ordering::Relaxed),
+            FRAMES.load(Ordering::Relaxed),
+            f32::from_bits(PEAK_IN.swap(0, Ordering::Relaxed)),
+            f32::from_bits(PEAK_OUT.swap(0, Ordering::Relaxed)),
+            value(P::Mode),
+            value(P::Mix),
+            value(P::Level),
+            value(P::ReverbTime),
+        );
+        if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(std::env::temp_dir().join("sp9ceverb-trace.log")) {
+            let _ = f.write_all(line.as_bytes());
+        }
+    }
 }
 
 /// How long the output rings after the input stops, in seconds; infinity
@@ -244,6 +353,9 @@ mod editor {
         let Some(e) = (editor as *mut ShellEditor).as_mut() else { return };
         if !plain.is_finite() {
             return;
+        }
+        if index == 0 {
+            super::trace::write("host");
         }
         if let Some(ed) = e.view.editor() {
             ed.host_value(index as usize, plain);
