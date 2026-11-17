@@ -20,7 +20,7 @@ BUNDLE_ID=com.opengrid.sp9ceverb
 VERSION="$(sed -n 's/^version = "\(.*\)"/\1/p' "$ROOT/plugin/Cargo.toml" | head -1)"
 # Bundle versions are numbers only; the plugin itself reports the full version.
 VERSION="${VERSION%%-*}"
-# Four-character codes. Placeholders until registered with Apple.
+# Four-character codes. Sessions find the Audio Unit by them: fixed for good.
 AU_SUBTYPE=Sp9v
 AU_MANUFACTURER=OpGd
 
@@ -86,7 +86,7 @@ if [ "$BUILD_IT" = 1 ]; then
     rm -rf "$DIST/$NAME.$ext"
     cp -R "$BUILD/$NAME.$ext" "$DIST/"
   done
-  codesign --force --sign - "$DIST/$NAME.vst3" "$DIST/$NAME.component" >/dev/null 2>&1
+  codesign --force --sign - "$DIST/$NAME.vst3" "$DIST/$NAME.component"
   echo "built $DIST/$NAME.vst3"
   echo "built $DIST/$NAME.component"
   echo "built $DIST/$NAME.aaxplugin (unsigned; needs the Avid wrap)"

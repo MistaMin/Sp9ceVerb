@@ -1,4 +1,4 @@
-//! Lettering through Core Text: Avenir Next in three weights, with tracking,
+//! Lettering through Core Text: Avenir Next in two weights, with tracking,
 //! measured so that centred text is centred exactly. Text is drawn straight
 //! into the frame's pixel buffer.
 
@@ -71,7 +71,6 @@ extern "C" {
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Weight {
-    Regular,
     Medium,
     Demi,
 }
@@ -117,7 +116,6 @@ unsafe fn font(weight: Weight, size: f32) -> Ref {
         return f.font as Ref;
     }
     let name = match weight {
-        Weight::Regular => "AvenirNext-Regular",
         Weight::Medium => "AvenirNext-Medium",
         Weight::Demi => "AvenirNext-DemiBold",
     };

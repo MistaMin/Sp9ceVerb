@@ -1,11 +1,21 @@
 #!/bin/sh
 # Builds Sp9ceVerb and bundles it.
-#   scripts/build.sh                build dist/Sp9ceVerb.clap, dist/Sp9ceVerb.lv2 and dist/Sp9ceVerb.app
+#   scripts/build.sh                build dist/Sp9ceVerb.clap and dist/Sp9ceVerb.lv2
 #   scripts/build.sh --install       also copy the CLAP and the LV2 to the user plug-in folders
+#   scripts/build.sh --app           also build dist/Sp9ceVerb.app, the standalone (not part of a release)
 # Universal (arm64 and x86_64) unless SP9CE_ARCHS names one architecture.
 set -e
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 . "$ROOT/scripts/sdk_env.sh"
+INSTALL=0
+APP_TOO=0
+for arg in "$@"; do
+  case "$arg" in
+    --install) INSTALL=1 ;;
+    --app) APP_TOO=1 ;;
+    *) echo "unknown option $arg" >&2; exit 1 ;;
+  esac
+done
 NAME=Sp9ceVerb
 BUNDLE_ID=com.opengrid.sp9ceverb
 VERSION="$(sed -n 's/^version = "\(.*\)"/\1/p' "$ROOT/plugin/Cargo.toml" | head -1)"
@@ -18,9 +28,13 @@ CARGO_ENCODED_RUSTFLAGS="--remap-path-prefix=$ROOT=.${SEP}--remap-path-prefix=$S
 export CARGO_ENCODED_RUSTFLAGS
 
 cd "$ROOT/plugin"
-cargo_universal --features standalone
+if [ "$APP_TOO" = 1 ]; then
+  cargo_universal --features standalone
+  join_archs sp9ceverb-app target/universal/sp9ceverb-app
+else
+  cargo_universal
+fi
 join_archs libsp9ceverb.dylib target/universal/libsp9ceverb.dylib
-join_archs sp9ceverb-app target/universal/sp9ceverb-app
 
 plist() { # executable, package type, extra keys
   cat <<PLIST
@@ -49,7 +63,7 @@ CLAP="$DIST/$NAME.clap"
 LV2="$DIST/$NAME.lv2"
 APP="$DIST/$NAME.app"
 rm -rf "$CLAP" "$LV2" "$APP"
-mkdir -p "$CLAP/Contents/MacOS" "$LV2" "$APP/Contents/MacOS"
+mkdir -p "$CLAP/Contents/MacOS" "$LV2"
 cp target/universal/libsp9ceverb.dylib "$CLAP/Contents/MacOS/$NAME"
 # The library records its build path as its install name; replace it.
 install_name_tool -id "@loader_path/$NAME" "$CLAP/Contents/MacOS/$NAME"
@@ -59,18 +73,23 @@ printf 'BNDL????' > "$CLAP/Contents/PkgInfo"
 # which the plugin writes from its own parameter table.
 cp target/universal/libsp9ceverb.dylib "$LV2/$NAME.dylib"
 install_name_tool -id "@loader_path/$NAME.dylib" "$LV2/$NAME.dylib"
-"target/$(rust_target "$(uname -m)")/release/sp9ceverb-lv2-ttl" "$LV2"
-cp target/universal/sp9ceverb-app "$APP/Contents/MacOS/$NAME"
-plist "$NAME" APPL ".app" > "$APP/Contents/Info.plist"
-printf 'APPL????' > "$APP/Contents/PkgInfo"
-codesign --force --sign - "$CLAP" >/dev/null 2>&1
-codesign --force --sign - "$LV2/$NAME.dylib" >/dev/null 2>&1
-codesign --force --sign - "$APP" >/dev/null 2>&1
+# Run the tool that was just built: this Mac's own, or else the first one.
+case " $SP9CE_ARCHS " in *" $(uname -m) "*) TTL_ARCH="$(uname -m)" ;; *) TTL_ARCH="${SP9CE_ARCHS%% *}" ;; esac
+"target/$(rust_target "$TTL_ARCH")/release/sp9ceverb-lv2-ttl" "$LV2"
+codesign --force --sign - "$CLAP"
+codesign --force --sign - "$LV2/$NAME.dylib"
 echo "built $CLAP"
 echo "built $LV2"
-echo "built $APP"
+if [ "$APP_TOO" = 1 ]; then
+  mkdir -p "$APP/Contents/MacOS"
+  cp target/universal/sp9ceverb-app "$APP/Contents/MacOS/$NAME"
+  plist "$NAME" APPL ".app" > "$APP/Contents/Info.plist"
+  printf 'APPL????' > "$APP/Contents/PkgInfo"
+  codesign --force --sign - "$APP"
+  echo "built $APP"
+fi
 
-if [ "$1" = "--install" ]; then
+if [ "$INSTALL" = 1 ]; then
   DEST="$HOME/Library/Audio/Plug-Ins/CLAP"
   mkdir -p "$DEST"
   rm -rf "$DEST/$NAME.clap"

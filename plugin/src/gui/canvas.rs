@@ -133,8 +133,9 @@ impl<'a> Canvas<'a> {
     /// Soft round light.
     pub fn glow(&mut self, x: f32, y: f32, radius: f32, c: Rgb, a: f32) {
         let r = radius.max(0.5);
-        let (xs, xe) = ((x - r).floor() as i32, (x + r).ceil() as i32);
-        let (ys, ye) = ((y - r).floor() as i32, (y + r).ceil() as i32);
+        // Only the part inside the clip: a large glow is mostly outside it.
+        let (xs, xe) = (((x - r).floor() as i32).max(self.clip[0]), ((x + r).ceil() as i32).min(self.clip[2] - 1));
+        let (ys, ye) = (((y - r).floor() as i32).max(self.clip[1]), ((y + r).ceil() as i32).min(self.clip[3] - 1));
         for py in ys..=ye {
             for px in xs..=xe {
                 let d = (((px as f32 + 0.5 - x).powi(2) + (py as f32 + 0.5 - y).powi(2)).sqrt()) / r;
@@ -143,21 +144,6 @@ impl<'a> Canvas<'a> {
                     self.add(px, py, c, a * f);
                 }
             }
-        }
-    }
-
-    /// Paint one pixel column from `y0` down to `y1` with a vertical gradient.
-    pub fn column(&mut self, x: i32, y0: f32, y1: f32, top: Rgb, bottom: Rgb, a_top: f32, a_bottom: f32) {
-        if x < self.clip[0] || x >= self.clip[2] || y1 <= y0 {
-            return;
-        }
-        let ys = (y0.floor() as i32).max(self.clip[1]);
-        let ye = (y1.ceil() as i32).min(self.clip[3] - 1);
-        let inv = 1.0 / (y1 - y0).max(1.0);
-        for y in ys..=ye {
-            let t = ((y as f32 + 0.5 - y0) * inv).clamp(0.0, 1.0);
-            let edge = (y as f32 + 1.0 - y0).clamp(0.0, 1.0);
-            self.over(x, y, mix(top, bottom, t), (a_top + (a_bottom - a_top) * t) * edge);
         }
     }
 

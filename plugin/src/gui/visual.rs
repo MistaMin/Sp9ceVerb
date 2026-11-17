@@ -673,20 +673,3 @@ impl Visual {
         ((hz / F_MIN).ln() / (F_MAX / F_MIN).ln()).clamp(0.0, 1.0)
     }
 }
-
-#[allow(dead_code)]
-/// An elliptical haze of light centred on the horizon.
-fn band_glow(cv: &mut Canvas, cx: f32, cy: f32, rx: f32, ry: f32, c: Rgb, a: f32) {
-    let (xs, xe) = ((cx - rx) as i32, (cx + rx) as i32);
-    let (ys, ye) = ((cy - ry) as i32, (cy + ry) as i32);
-    for py in ys..=ye {
-        let v = (py as f32 - cy) / ry;
-        for px in xs..=xe {
-            let u = (px as f32 - cx) / rx;
-            let d = u * u + v * v;
-            if d < 1.0 {
-                cv.add(px, py, c, a * (1.0 - d) * (1.0 - d));
-            }
-        }
-    }
-}

@@ -14,7 +14,7 @@
 
 use crate::cocoa::View;
 use crate::gui::{Editor, HEIGHT, WIDTH};
-use crate::plugin::{take_handoff, GuiEvent, OnePlugin, Shared};
+use crate::plugin::{create_with_shared, GuiEvent, OnePlugin, Shared};
 use openplugin::targets::clap as sdk;
 use openplugin::targets::clap_abi::*;
 use openplugin::targets::PluginForExport;
@@ -492,12 +492,10 @@ unsafe extern "C" fn factory_create(_f: *const clap_plugin_factory, host: *const
         return std::ptr::null();
     }
     let Some(create) = (*f).create_plugin else { return std::ptr::null() };
-    let _ = take_handoff(); // drop anything stale
-    let inner = create(f, host, id);
+    let (inner, shared) = create_with_shared(|| create(f, host, id));
     if inner.is_null() {
         return std::ptr::null();
     }
-    let shared = take_handoff();
     // The SDK allocates this object on the heap and never moves it.
     let hooked = inner as *mut clap_plugin;
     let raw = Box::into_raw(Box::new(Bridge {
@@ -555,3 +553,28 @@ pub static clap_entry: clap_plugin_entry = clap_plugin_entry {
     deinit: Some(sdk::entry_deinit),
     get_factory: Some(entry_get_factory),
 };
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sp9ce_engine::ParamId;
+
+    fn parse(id: ParamId, text: &CStr) -> Option<f64> {
+        let mut out = f64::NAN;
+        unsafe { params_text_to_value(std::ptr::null(), id.index() as u32, text.as_ptr(), &mut out) }.then_some(out)
+    }
+
+    #[test]
+    fn typed_text_becomes_a_plain_value() {
+        assert_eq!(parse(ParamId::Mode, c"plate"), Some(2.0));
+        assert_eq!(parse(ParamId::Infinite, c" On "), Some(1.0));
+        assert_eq!(parse(ParamId::Infinite, c"off"), Some(0.0));
+        assert_eq!(parse(ParamId::Predelay, c"250 ms"), Some(0.25));
+        assert_eq!(parse(ParamId::HfDamp, c"1.5 kHz"), Some(1500.0));
+        assert_eq!(parse(ParamId::ReverbTime, c"-2.5"), Some(-2.5));
+        assert_eq!(parse(ParamId::ReverbTime, c"long"), None);
+        assert_eq!(parse(ParamId::ReverbTime, c""), None);
+        let mut out = 0.0;
+        assert!(!unsafe { params_text_to_value(std::ptr::null(), 9999, c"1".as_ptr(), &mut out) });
+    }
+}

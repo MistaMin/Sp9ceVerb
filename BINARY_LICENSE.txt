@@ -2,8 +2,8 @@ Sp9ceVerb Binary Freeware License
 Copyright (c) 2026 Marcos Quirino Deida
 
 Scope
-This license applies to the official compiled Sp9ceVerb plug-ins, standalone
-application, and installers distributed by OpenGrid.
+This license applies to the official compiled Sp9ceVerb plug-ins and
+installers distributed by OpenGrid.
 Sp9ceVerb source code is separately available under the MIT License.
 
 Permission to use

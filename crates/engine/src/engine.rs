@@ -1,6 +1,6 @@
 //! The unified reverb engine.
 //!
-//! One signal path serves all seven voicings:
+//! One signal path serves all nine voicings:
 //!
 //! ```text
 //! in ─┬─ input line ─┬─ early pattern taps ───────────────────────┐
@@ -22,8 +22,11 @@ const PLATEAU_MS: [f32; PLATEAU] = [43.7, 57.1, 71.3, 88.9];
 const TAPS: usize = 24;
 const CHUNK: usize = 32;
 const BUILD_SPAN: f32 = 0.105;
-const REVERSE_SPAN: f32 = 0.5;
-const INPUT_LINE_SECONDS: f32 = 1.6;
+/// Length of the reversed early pattern at Room Scale 1, seconds.
+pub const REVERSE_SPAN: f32 = 0.5;
+/// Room for the longest early read: both predelays (0.4 s) and the reversed
+/// pattern at the largest Room Scale (2.0 s).
+const INPUT_LINE_SECONDS: f32 = 2.6;
 const FDN_LINE_SECONDS: f32 = 0.5;
 /// Input beyond +80 dBFS is clipped before it reaches a feedback loop.
 const INPUT_LIMIT: f32 = 1.0e4;

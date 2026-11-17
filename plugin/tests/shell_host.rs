@@ -93,3 +93,23 @@ fn editor_reports_size_and_tolerates_null() {
         op_editor_destroy(std::ptr::null_mut());
     }
 }
+
+#[test]
+fn tail_covers_the_reversed_room_pattern() {
+    unsafe {
+        let p = op_shell_create(48_000.0, 256, 2);
+        let input = [0.0f32; 256];
+        let (mut l, mut r) = ([0.0f32; 256], [0.0f32; 256]);
+        let set = |id: ParamId, v: f32| op_shell_set_plain(p, id.index() as u32, v);
+        set(ParamId::Mode, 0.0);
+        set(ParamId::ReverbTime, 0.1);
+        set(ParamId::RoomScale, 4.0);
+        op_shell_process(p, input.as_ptr(), input.as_ptr(), l.as_mut_ptr(), r.as_mut_ptr(), 256);
+        assert!((op_shell_tail_seconds(p) - 1.6).abs() < 1e-3);
+        // Reversed, the pattern is 0.5 s x Room Scale long and loudest at its end.
+        set(ParamId::Reverse, 1.0);
+        op_shell_process(p, input.as_ptr(), input.as_ptr(), l.as_mut_ptr(), r.as_mut_ptr(), 256);
+        assert!((op_shell_tail_seconds(p) - 3.6).abs() < 1e-3);
+        op_shell_destroy(p);
+    }
+}

@@ -13,7 +13,7 @@
 
 #![allow(clippy::missing_safety_doc)]
 
-use crate::plugin::{take_handoff, OnePlugin, Shared};
+use crate::plugin::{create_with_shared, OnePlugin, Shared};
 use openplugin::targets::shell::{self, OpParamDesc, OpShellInfo, ShellInstance};
 use std::ffi::c_void;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -61,13 +61,7 @@ pub unsafe extern "C" fn op_shell_to_normalized(index: u32, plain: f64) -> f64 {
 
 #[no_mangle]
 pub unsafe extern "C" fn op_shell_create(sample_rate: f64, max_block: u32, channels: u32) -> *mut c_void {
-    // The plugin hands its shared state over through one global slot, so two
-    // host threads creating instances at once must take turns.
-    static CREATE: Mutex<()> = Mutex::new(());
-    let _turn = CREATE.lock();
-    let _ = take_handoff(); // drop anything stale
-    let instance = shell::create::<OnePlugin>(sample_rate, max_block, channels) as *mut c_void;
-    let shared = take_handoff();
+    let (instance, shared) = create_with_shared(|| shell::create::<OnePlugin>(sample_rate, max_block, channels) as *mut c_void);
     trace::CREATES.fetch_add(1, Ordering::Relaxed);
     if !instance.is_null() {
         if let (Some(shared), Ok(mut list)) = (shared, INSTANCES.lock()) {

@@ -5,6 +5,7 @@ use openplugin::dri::goodlookindri::spectrum::SampleRing;
 use openplugin::prelude::*;
 use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
+use sp9ce_engine::engine::REVERSE_SPAN;
 use sp9ce_engine::{params, Engine, Mode, ParamId};
 
 pub const PARAM_COUNT: usize = ParamId::COUNT;
@@ -202,12 +203,23 @@ pub fn info() -> &'static PluginInfo {
     })
 }
 
-/// The most recently created instance's shared state. The editor bridge takes
-/// it right after it asks the SDK for a new plugin, on the same thread.
+/// The shared state of the first plugin made since the slot was last emptied.
+/// [`create_with_shared`] empties it, asks the SDK for a plugin and takes it.
 static HANDOFF: Mutex<Option<Arc<Shared>>> = Mutex::new(None);
 
-pub fn take_handoff() -> Option<Arc<Shared>> {
+fn take_handoff() -> Option<Arc<Shared>> {
     HANDOFF.lock().ok().and_then(|mut g| g.take())
+}
+
+/// Run `create`, which makes one plugin, and return what it made with that
+/// plugin's shared state. The hand-over is one slot, so callers take turns:
+/// a host may create instances from several threads at once.
+pub fn create_with_shared<T>(create: impl FnOnce() -> T) -> (T, Option<Arc<Shared>>) {
+    static TURN: Mutex<()> = Mutex::new(());
+    let _turn = TURN.lock();
+    let _ = take_handoff(); // drop anything stale
+    let made = create();
+    (made, take_handoff())
 }
 
 /// Room for the pre-delays, the reversed early pattern and the last decibels.
@@ -221,7 +233,8 @@ const ECHO_FLOOR_LN: f64 = -6.907_755_278_982_137; // ln(0.001)
 ///
 /// The decay is the reverb time in the low band (Bass RT lengthens it). The
 /// plate and chamber echoes repeat with their own feedback and can outlast the
-/// reverb, so the slower of the two is added in front of the decay.
+/// reverb, so the slower of the two is added in front of the decay. So is the
+/// reversed Room pattern, which is loudest at its end.
 pub fn tail_seconds(value: impl Fn(ParamId) -> f32) -> f64 {
     let mode = Mode::from_index(value(ParamId::Mode).round() as usize);
     let has = |id: ParamId| params::extras(mode).iter().any(|s| s.id == id);
@@ -241,12 +254,18 @@ pub fn tail_seconds(value: impl Fn(ParamId) -> f32) -> f64 {
             }
         }
     }
-    echoes + decay + TAIL_MARGIN
+    let reverse = if mode == Mode::Room && value(ParamId::Reverse) > 0.5 {
+        (REVERSE_SPAN * value(ParamId::RoomScale)) as f64
+    } else {
+        0.0
+    };
+    echoes + reverse + decay + TAIL_MARGIN
 }
 
 /// The longest finite tail the parameter ranges allow.
 pub fn longest_tail_seconds() -> f64 {
     let max = |id: ParamId| params::range(id).1 as f64;
+    // The echoes and the reversed pattern belong to different voicings; the echoes are longer.
     max(ParamId::EchoLTime) * (ECHO_FLOOR_LN / 0.95f64.ln()) + max(ParamId::ReverbTime) * max(ParamId::BassRt) + TAIL_MARGIN
 }
 
@@ -263,7 +282,9 @@ impl Default for OnePlugin {
     fn default() -> Self {
         let shared = Shared::new();
         if let Ok(mut slot) = HANDOFF.lock() {
-            *slot = Some(shared.clone());
+            // The first one made in a create is the instance; the SDK may make
+            // throwaway ones after it to read the descriptor.
+            slot.get_or_insert_with(|| shared.clone());
         }
         // Start from the published defaults, so the host and the engine agree.
         let mut engine = Engine::new(Mode::Hall);

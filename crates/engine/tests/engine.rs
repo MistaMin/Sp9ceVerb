@@ -305,3 +305,21 @@ fn ambience_at_five_times_its_size_is_longer_but_still_dense_and_no_louder() {
     // No louder overall.
     assert!((rms_db(&large) - rms_db(&small)).abs() < 1.5);
 }
+
+#[test]
+fn the_longest_reversed_pattern_fits_the_input_line_at_every_rate() {
+    // 0.4 s of predelay and 0.5 s x 4: the last and loudest tap is 2.4 s after the input.
+    for fs in [32_000.0, 48_000.0, 64_000.0] {
+        let mut e = wet(Mode::Room);
+        e.activate(fs);
+        e.set_param(ParamId::Reverse, 1.0);
+        e.set_param(ParamId::RoomScale, 4.0);
+        e.set_param(ParamId::ReverbTime, 0.1);
+        e.set_param(ParamId::Predelay, 0.2);
+        e.set_param(ParamId::EarlyPredelay, 0.2);
+        let x = impulse((fs * 3.0) as usize);
+        let (l, _) = render(&mut e, &x, &x, 512);
+        let peak = (0..l.len()).max_by(|a, b| l[*a].abs().total_cmp(&l[*b].abs())).unwrap();
+        assert!((peak as f32 / fs - 2.4).abs() < 0.01, "{fs} Hz: loudest tap at {} s", peak as f32 / fs);
+    }
+}

@@ -79,7 +79,7 @@ scripts/build.sh --install            # also copy them to ~/Library/Audio/Plug-I
 scripts/build_shells.sh               # VST3, Audio Unit and AAX into dist/
 ```
 
-Rust is required. OpenPluginSDK and GoodLookinDri are found at build time (a
+Rust is required. OpenPluginSDK (0.2.0-beta) and GoodLookinDri (0.1.0) are found at build time (a
 `Dependencies` folder next to or above this one, or the `OPENPLUGIN_SDK` and
 `GOODLOOKINDRI` variables). `scripts/build_shells.sh` also needs the VST3 SDK,
 the AudioUnitSDK and, for AAX, the Avid AAX SDK. Pro Tools only loads an AAX

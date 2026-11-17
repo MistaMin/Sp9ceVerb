@@ -44,7 +44,7 @@ Sp9ceVerb, a reverb plugin with nine spaces on one engine. CLAP id
   `docs/PROVENANCE.md` before changing the engine.
 - The reported tail (`plugin::tail_seconds`, one function for every format)
   must cover what the engine really rings: the low-band decay, the plate and
-  chamber echoes, and infinity for Infinite and for Chaos above zero. Change
+  chamber echoes, the reversed Room pattern, and infinity for Infinite and for Chaos above zero. Change
   it together with anything that lengthens the ring-out.
 - Shell trace, for a host that goes silent: create `sp9ceverb-trace.on` in the
   temporary folder before the plugin first processes, and the VST3, AU and
@@ -68,7 +68,7 @@ Sp9ceVerb, a reverb plugin with nine spaces on one engine. CLAP id
 
 ```sh
 cargo test --workspace --release
-scripts/build.sh [--install]                    # CLAP, LV2 and the standalone
+scripts/build.sh [--install] [--app]            # CLAP and LV2; --app also builds the standalone
 scripts/build_shells.sh [--install] [--check]   # VST3, AU, AAX; --check clicks each editor's preset arrow
 scripts/build_shells.sh --check-only            # the same checks on what is already built; builds nothing
 auval -v aufx Sp9v OpGd
@@ -76,6 +76,10 @@ scripts/sign_aax.sh [--install]         # settings in scripts/signing.local.env 
 cd plugin && . ../scripts/sdk_env.sh && cargo_sdk test --release
 clap-validator validate dist/Sp9ceVerb.clap
 ```
+
+The plugin builds against OpenPluginSDK 0.2.0-beta and GoodLookinDri 0.1.0.
+Later versions of both need a port first: the SDK's VST3, AU and AAX shells
+moved to a larger C interface (shell ABI 8) that `shell_host.rs` does not export.
 
 Host test: the plugin-daw-test skill, `--fx "CLAP: Sp9ceVerb"`. Voicing controls
 only act in their own voicing, so the exceptions file gives each one a

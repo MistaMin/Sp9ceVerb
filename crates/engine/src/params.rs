@@ -65,7 +65,7 @@ impl Mode {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(u8)]
 pub enum ParamId {
-    /// Voicing selector, 0..6 (see [`Mode`]).
+    /// Voicing selector, 0..8 (see [`Mode`]).
     Mode,
     // ---- common ----
     Mix,
