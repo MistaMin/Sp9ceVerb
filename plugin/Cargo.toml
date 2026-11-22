@@ -1,6 +1,6 @@
 [package]
 name = "sp9ceverb"
-version = "1.0.0-beta"
+version = "1.0.1-beta"
 edition = "2021"
 license = "MIT"
 description = "Sp9ceVerb: a nine-space reverb plugin on OpenPluginSDK with a GoodLookinDri editor."

@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.0.1-Beta - 2026-11-22
+
+- The reported tail now includes the reversed Room pattern (up to 2 s at
+  Room Scale 4). Before, a host could cut its ring-out short when exporting.
+- The reversed Room pattern sounds the same at every sample rate. At 32 and
+  64 kHz its late taps used to pile up on one position, about 12 dB too loud.
+- The other spaces, the presets and the sound are unchanged, and sessions
+  saved with 1.0-Beta open as before.
+- Hosts show the version as `1.0.1-beta`.
+
 ## 1.0-Beta - 2026-11-14
 
 - Every format is now a universal binary: Apple silicon (arm64) and Intel

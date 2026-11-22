@@ -109,6 +109,6 @@ Measurement: `cargo build --release -p sp9ce-engine --example probe`, then
   binaries (arm64 and x86_64) of CLAP, VST3, Audio Unit, LV2 and AAX. The
   owner decided against shipping the standalone. 0.1.0 was arm64 only and had
   no LV2.
-- Versions: `plugin/Cargo.toml` holds the full version (`1.0.0-beta`), which
-  hosts show. Bundle `Info.plist` files get the numbers alone (`1.0.0`).
-  Documents, the tag and the file names use the owner's wording (`1.0-Beta`).
+- Versions: `plugin/Cargo.toml` holds the full version (`1.0.1-beta`), which
+  hosts show. Bundle `Info.plist` files get the numbers alone (`1.0.1`).
+  Documents, the tag and the file names use the owner's wording (`1.0.1-Beta`).

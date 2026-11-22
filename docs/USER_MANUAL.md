@@ -1,4 +1,4 @@
-# Sp9ceVerb 1.0-Beta User Manual
+# Sp9ceVerb 1.0.1-Beta User Manual
 
 ## 1. What it is
 
@@ -38,7 +38,7 @@ Where the design came from is stated in `docs/PROVENANCE.md`.
 
 ## 3. Installing
 
-Run `Sp9ceVerb-1.0-Beta-macos.pkg`. The installer offers one choice per format
+Run `Sp9ceVerb-1.0.1-Beta-macos.pkg`. The installer offers one choice per format
 and installs to the system-wide folders:
 
 | Format | Installed to |
@@ -53,7 +53,7 @@ Rescan plugins in your host afterwards. The Audio Unit appears as
 "OpenGrid: Sp9ceVerb" (type `aufx`, subtype `Sp9v`, manufacturer `OpGd`); the
 CLAP id is `com.opengrid.sp9ceverb`, and the LV2 is
 `https://opengrid.studio/plugins/sp9ceverb`. Hosts show the version as
-`1.0.0-beta`.
+`1.0.1-beta`.
 
 To uninstall, delete the bundles from the folders above.
 

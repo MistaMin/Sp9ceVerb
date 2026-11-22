@@ -16,7 +16,11 @@ share one signal path, and the editor shows the reverb as it works.
 
 *The pictures are rendered from the plugin's own editor code by `sp9ceverb-preview`.*
 
-## Version 1.0-Beta
+## Version 1.0.1-Beta
+
+A fix release of the beta. The reported tail now covers the reversed Room
+pattern, so exports keep its whole ring-out, and that pattern sounds the same
+at every sample rate. Sessions from 1.0-Beta open as before.
 
 - Nine spaces, each with its own controls below ten shared ones.
 - Three displays of the same signal: a 3D decay surface, an ocean of waves and
@@ -32,20 +36,20 @@ share one signal path, and the editor shows the reverb as it works.
 ## Download
 
 **macOS 11 or later, Apple silicon and Intel:**
-[Sp9ceVerb-1.0-Beta-macos.pkg](https://github.com/MistaMin/Sp9ceVerb/releases/download/v1.0-Beta/Sp9ceVerb-1.0-Beta-macos.pkg) ·
-[Sp9ceVerb-1.0-Beta-macos.dmg](https://github.com/MistaMin/Sp9ceVerb/releases/download/v1.0-Beta/Sp9ceVerb-1.0-Beta-macos.dmg) ·
-[User manual (PDF)](https://github.com/MistaMin/Sp9ceVerb/releases/download/v1.0-Beta/Sp9ceVerb-User-Manual.pdf)
+[Sp9ceVerb-1.0.1-Beta-macos.pkg](https://github.com/MistaMin/Sp9ceVerb/releases/download/v1.0.1-Beta/Sp9ceVerb-1.0.1-Beta-macos.pkg) ·
+[Sp9ceVerb-1.0.1-Beta-macos.dmg](https://github.com/MistaMin/Sp9ceVerb/releases/download/v1.0.1-Beta/Sp9ceVerb-1.0.1-Beta-macos.dmg) ·
+[User manual (PDF)](https://github.com/MistaMin/Sp9ceVerb/releases/download/v1.0.1-Beta/Sp9ceVerb-User-Manual.pdf)
 
 The installer offers **CLAP, VST3, Audio Unit, LV2 and AAX**, one choice per
 format.
 It is signed with Developer ID and notarized by Apple, and the AAX is signed
 with PACE Eden for Pro Tools. The disk image holds the same installer with the
 manual and the licence texts. Checksums are on the
-[release page](https://github.com/MistaMin/Sp9ceVerb/releases/tag/v1.0-Beta).
+[release page](https://github.com/MistaMin/Sp9ceVerb/releases/tag/v1.0.1-Beta).
 
 This is a beta. There is no Windows or Linux build yet and no standalone
-application in this release. The AAX passes Avid's validator but has not yet
-been tested inside Pro Tools.
+application in this release. The AAX passes Avid's validator and was tested
+in Pro Tools 2025.10; see the release notes for what is still open there.
 
 ## User guide
 
