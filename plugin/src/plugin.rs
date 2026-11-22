@@ -203,7 +203,7 @@ pub fn info() -> &'static PluginInfo {
     })
 }
 
-/// The shared state of the first plugin made since the slot was last emptied.
+/// The shared state of the last plugin made since the slot was last emptied.
 /// [`create_with_shared`] empties it, asks the SDK for a plugin and takes it.
 static HANDOFF: Mutex<Option<Arc<Shared>>> = Mutex::new(None);
 
@@ -282,9 +282,9 @@ impl Default for OnePlugin {
     fn default() -> Self {
         let shared = Shared::new();
         if let Ok(mut slot) = HANDOFF.lock() {
-            // The first one made in a create is the instance; the SDK may make
-            // throwaway ones after it to read the descriptor.
-            slot.get_or_insert_with(|| shared.clone());
+            // The last one made in a create is the instance: the SDK's CLAP
+            // factory makes a throwaway first to read its descriptor.
+            *slot = Some(shared.clone());
         }
         // Start from the published defaults, so the host and the engine agree.
         let mut engine = Engine::new(Mode::Hall);
