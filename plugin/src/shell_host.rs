@@ -1,11 +1,12 @@
 //! The C ABI the VST3, Audio Unit and AAX shells link (`native/` in
-//! OpenPluginSDK): the SDK's `op_shell_*` audio contract, plus `op_editor_*`,
-//! which gives those shells the same editor the CLAP has.
+//! OpenPluginSDK): the SDK's `op_shell_*` audio contract, exported whole by
+//! `export_shell!`, plus `op_editor_*`, which gives those shells the same
+//! editor the CLAP has.
 //!
-//! The audio calls forward to the SDK. `op_shell_create` also remembers which
-//! [`Shared`] belongs to the instance it returns, so an editor can be bound to
-//! the engine it should show. A shell recreates its engine when the host
-//! reconfigures it, and binds the open editor again.
+//! An editor finds the engine it should show through the instance's
+//! [`Plugin::editor_state`](openplugin::prelude::Plugin::editor_state). A shell
+//! recreates its engine when the host reconfigures it, and binds the open
+//! editor again.
 //!
 //! Editor gestures do not use the queue here. They go to the host through the
 //! callbacks in [`OpEditorHost`], on the main thread, and the host carries the
@@ -13,232 +14,16 @@
 
 #![allow(clippy::missing_safety_doc)]
 
-use crate::plugin::{create_with_shared, OnePlugin, Shared};
-use openplugin::targets::shell::{self, OpParamDesc, OpShellInfo, ShellInstance};
+use crate::plugin::{OnePlugin, Shared};
+use openplugin::targets::shell::{self, ShellInstance};
 use std::ffi::c_void;
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
-/// Live shell instances and their shared state. Message thread only.
-static INSTANCES: Mutex<Vec<(usize, Arc<Shared>)>> = Mutex::new(Vec::new());
+openplugin::targets::export_shell!(OnePlugin);
 
 /// The shared state of a live instance, by the pointer `op_shell_create` returned.
 pub fn shared_for(instance: *const c_void) -> Option<Arc<Shared>> {
-    let list = INSTANCES.lock().ok()?;
-    list.iter().find(|(key, _)| *key == instance as usize).map(|(_, s)| s.clone())
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn op_shell_info(out: *mut OpShellInfo) -> u32 {
-    let ok = shell::write_info::<OnePlugin>(out);
-    if ok != 0 {
-        // The AAX IDs. Pro Tools sessions find the plugin by them, so they are
-        // fixed for good: never change one after a release. The SDK's defaults
-        // are hashes, which are not printable and cannot go in a page table.
-        let info = &mut *out;
-        info.manufacturer_id = u32::from_be_bytes(*b"OpGd");
-        info.product_id = u32::from_be_bytes(*b"Sp9v");
-        info.plugin_id_mono = u32::from_be_bytes(*b"Sp9M");
-        info.plugin_id_stereo = u32::from_be_bytes(*b"Sp9S");
-    }
-    ok
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn op_shell_param(index: u32, out: *mut OpParamDesc) -> u32 {
-    shell::write_param::<OnePlugin>(index, out)
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn op_shell_to_plain(index: u32, normalized: f64) -> f64 {
-    shell::to_plain::<OnePlugin>(index, normalized)
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn op_shell_to_normalized(index: u32, plain: f64) -> f64 {
-    shell::to_normalized::<OnePlugin>(index, plain)
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn op_shell_create(sample_rate: f64, max_block: u32, channels: u32) -> *mut c_void {
-    let (instance, shared) = create_with_shared(|| shell::create::<OnePlugin>(sample_rate, max_block, channels) as *mut c_void);
-    trace::CREATES.fetch_add(1, Ordering::Relaxed);
-    if !instance.is_null() {
-        if let (Some(shared), Ok(mut list)) = (shared, INSTANCES.lock()) {
-            list.push((instance as usize, shared));
-        }
-    }
-    instance
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn op_shell_destroy(instance: *mut c_void) {
-    if let Ok(mut list) = INSTANCES.lock() {
-        list.retain(|(key, _)| *key != instance as usize);
-    }
-    shell::destroy(instance as *mut ShellInstance);
-    trace::DESTROYS.fetch_add(1, Ordering::Relaxed);
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn op_shell_reset(instance: *mut c_void) {
-    shell::reset(instance as *mut ShellInstance);
-    trace::RESETS.fetch_add(1, Ordering::Relaxed);
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn op_shell_latency(instance: *const c_void) -> u32 {
-    shell::latency(instance as *const ShellInstance)
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn op_shell_set_plain(instance: *mut c_void, index: u32, plain: f32) -> u32 {
-    shell::set_plain(instance as *mut ShellInstance, index, plain)
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn op_shell_get_plain(instance: *const c_void, index: u32) -> f32 {
-    shell::get_plain(instance as *const ShellInstance, index)
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn op_shell_set_normalized(instance: *mut c_void, index: u32, normalized: f32) -> u32 {
-    shell::set_normalized(instance as *mut ShellInstance, index, normalized)
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn op_shell_get_normalized(instance: *const c_void, index: u32) -> f32 {
-    shell::get_normalized(instance as *const ShellInstance, index)
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn op_shell_process(
-    instance: *mut c_void,
-    in_left: *const f32,
-    in_right: *const f32,
-    out_left: *mut f32,
-    out_right: *mut f32,
-    frames: u32,
-) -> u32 {
-    if !trace::on() {
-        return shell::process(instance as *mut ShellInstance, in_left, in_right, out_left, out_right, frames);
-    }
-    let peak = |p: *const f32| {
-        if p.is_null() {
-            return 0.0f32;
-        }
-        std::slice::from_raw_parts(p, frames as usize).iter().fold(0.0f32, |m, v| if v.is_finite() { m.max(v.abs()) } else { f32::INFINITY })
-    };
-    let input = peak(in_left).max(peak(in_right));
-    let ok = shell::process(instance as *mut ShellInstance, in_left, in_right, out_left, out_right, frames);
-    trace::block(instance as usize, frames, ok != 0, input, peak(out_left).max(peak(out_right)));
-    ok
-}
-
-/// A diagnostic trace of what the host does with the shell, off unless the
-/// file `sp9ceverb-trace.on` exists in the temporary folder when the first
-/// block is processed. The audio thread only updates counters; a main-thread
-/// caller writes them to `sp9ceverb-trace.log` there, a few times a second.
-pub mod trace {
-    use super::*;
-    use std::io::Write;
-    use std::sync::atomic::{AtomicU32, AtomicU64, AtomicU8};
-
-    pub static CREATES: AtomicU32 = AtomicU32::new(0);
-    pub static DESTROYS: AtomicU32 = AtomicU32::new(0);
-    pub static RESETS: AtomicU32 = AtomicU32::new(0);
-    static STATE: AtomicU8 = AtomicU8::new(0); // 0 unknown, 1 off, 2 on
-    static BLOCKS: AtomicU32 = AtomicU32::new(0);
-    static FAILED: AtomicU32 = AtomicU32::new(0);
-    static FRAMES: AtomicU32 = AtomicU32::new(0);
-    static PEAK_IN: AtomicU32 = AtomicU32::new(0);
-    static PEAK_OUT: AtomicU32 = AtomicU32::new(0);
-    static INSTANCE: AtomicUsize = AtomicUsize::new(0);
-    static LAST_WRITE: AtomicU64 = AtomicU64::new(0);
-
-    pub fn on() -> bool {
-        match STATE.load(Ordering::Relaxed) {
-            2 => true,
-            1 => false,
-            _ => {
-                // Once, on whichever thread asks first. A file check is not for
-                // the audio thread, but this is a diagnostic switch.
-                let found = std::env::temp_dir().join("sp9ceverb-trace.on").exists();
-                STATE.store(if found { 2 } else { 1 }, Ordering::Relaxed);
-                found
-            }
-        }
-    }
-
-    fn raise(slot: &AtomicU32, v: f32) {
-        if v > f32::from_bits(slot.load(Ordering::Relaxed)) {
-            slot.store(v.to_bits(), Ordering::Relaxed);
-        }
-    }
-
-    pub fn block(instance: usize, frames: u32, ok: bool, input: f32, output: f32) {
-        BLOCKS.fetch_add(1, Ordering::Relaxed);
-        if !ok {
-            FAILED.fetch_add(1, Ordering::Relaxed);
-        }
-        FRAMES.store(frames, Ordering::Relaxed);
-        INSTANCE.store(instance, Ordering::Relaxed);
-        raise(&PEAK_IN, input);
-        raise(&PEAK_OUT, output);
-    }
-
-    /// Append one line if the trace is on and a quarter second has passed. Main thread.
-    pub fn write(note: &str) {
-        if !on() {
-            return;
-        }
-        let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0);
-        if now.saturating_sub(LAST_WRITE.load(Ordering::Relaxed)) < 250 {
-            return;
-        }
-        LAST_WRITE.store(now, Ordering::Relaxed);
-        let instance = INSTANCE.load(Ordering::Relaxed);
-        let value = |id: sp9ce_engine::ParamId| {
-            // What the engine side holds, not what the host last reported.
-            if instance == 0 || shared_for(instance as *const c_void).is_none() {
-                f32::NAN
-            } else {
-                unsafe { shell::get_plain(instance as *const ShellInstance, id.index() as u32) }
-            }
-        };
-        use sp9ce_engine::ParamId as P;
-        let line = format!(
-            "{now} {note} creates={} destroys={} resets={} blocks={} failed={} frames={} peak_in={:.5} peak_out={:.5} mode={} mix={:.3} level={:.3} rt={:.3}\n",
-            CREATES.load(Ordering::Relaxed),
-            DESTROYS.load(Ordering::Relaxed),
-            RESETS.load(Ordering::Relaxed),
-            BLOCKS.swap(0, Ordering::Relaxed),
-            FAILED.swap(0, Ordering::Relaxed),
-            FRAMES.load(Ordering::Relaxed),
-            f32::from_bits(PEAK_IN.swap(0, Ordering::Relaxed)),
-            f32::from_bits(PEAK_OUT.swap(0, Ordering::Relaxed)),
-            value(P::Mode),
-            value(P::Mix),
-            value(P::Level),
-            value(P::ReverbTime),
-        );
-        if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(std::env::temp_dir().join("sp9ceverb-trace.log")) {
-            let _ = f.write_all(line.as_bytes());
-        }
-    }
-}
-
-/// How long the output rings after the input stops, in seconds; infinity
-/// when it never ends ([`crate::plugin::tail_seconds`]). Never blocks: if the
-/// instance table is busy it answers with the longest finite tail.
-#[no_mangle]
-pub unsafe extern "C" fn op_shell_tail_seconds(instance: *mut c_void) -> f64 {
-    use crate::plugin::{longest_tail_seconds, tail_seconds};
-    let Ok(list) = INSTANCES.try_lock() else { return longest_tail_seconds() };
-    match list.iter().find(|(key, _)| *key == instance as usize) {
-        Some((_, shared)) => tail_seconds(|id| shared.value(id.index())),
-        None => longest_tail_seconds(),
-    }
+    shell::editor_state(instance as *const ShellInstance)?.downcast::<Shared>().ok()
 }
 
 #[cfg(target_os = "macos")]
@@ -349,12 +134,59 @@ mod editor {
             return;
         }
         if index == 0 {
-            super::trace::write("host");
+            openplugin::targets::shell::trace::write("host");
         }
         if let Some(ed) = e.view.editor() {
             ed.host_value(index as usize, plain);
         }
     }
+
+    // The shells also link the optional resize and menu calls of op_editor.h.
+    // The editor has one size and no host menu, so they say exactly that.
+    fn fixed(width: *mut u32, height: *mut u32) -> u32 {
+        unsafe { op_editor_size(width, height) }
+    }
+
+    #[no_mangle]
+    pub unsafe extern "C" fn op_editor_size_range(
+        min_w: *mut u32,
+        min_h: *mut u32,
+        max_w: *mut u32,
+        max_h: *mut u32,
+        aspect_w: *mut u32,
+        aspect_h: *mut u32,
+    ) -> u32 {
+        if aspect_w.is_null() || aspect_h.is_null() || fixed(min_w, min_h) == 0 || fixed(max_w, max_h) == 0 {
+            return 0;
+        }
+        *aspect_w = 0;
+        *aspect_h = 0;
+        1
+    }
+
+    #[no_mangle]
+    pub unsafe extern "C" fn op_editor_get_size(_editor: *mut c_void, width: *mut u32, height: *mut u32) -> u32 {
+        fixed(width, height)
+    }
+
+    #[no_mangle]
+    pub unsafe extern "C" fn op_editor_adjust_size(_editor: *mut c_void, width: *mut u32, height: *mut u32) -> u32 {
+        fixed(width, height)
+    }
+
+    #[no_mangle]
+    pub unsafe extern "C" fn op_editor_resize(_editor: *mut c_void, width: u32, height: u32) -> u32 {
+        (width == WIDTH as u32 && height == HEIGHT as u32) as u32
+    }
+
+    #[no_mangle]
+    pub unsafe extern "C" fn op_editor_set_request_resize(_editor: *mut c_void, _context: *mut c_void, _request: *const c_void) {}
+
+    #[no_mangle]
+    pub unsafe extern "C" fn op_editor_set_context_menu(_editor: *mut c_void, _context: *mut c_void, _show: *const c_void) {}
+
+    #[no_mangle]
+    pub unsafe extern "C" fn op_editor_set_track_info(_editor: *mut c_void, _name: *const std::ffi::c_char, _rgba: u32, _flags: u32) {}
 
     /// Remove the view from its parent and free the editor.
     #[no_mangle]

@@ -1,0 +1,6 @@
+#!/bin/sh
+# cargo with the SDK patches of sdk_env.sh, for tools that run cargo themselves
+# (the OpenPluginSDK test runner and its hooks look for this file).
+#   scripts/cargo_sdk test --release
+. "$(dirname "$0")/sdk_env.sh" || exit 1
+cargo_sdk "$@"

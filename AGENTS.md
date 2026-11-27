@@ -26,8 +26,8 @@ Sp9ceVerb, a reverb plugin with nine spaces on one engine. CLAP id
   two `.ttl` files from the parameter table (`sp9ceverb-lv2-ttl`). The LV2
   name in `lv2_host::URI` is fixed for good.
   `shell_host.rs` is the C ABI the SDK's VST3, AU and AAX shells link:
-  `op_shell_*` (audio, forwarded to the SDK), `op_shell_tail_seconds`, and
-  `op_editor_*` (the same editor, gestures sent to the host on the main thread).
+  `op_shell_*` (audio and tail, the SDK's `export_shell!`) and `op_editor_*`
+  (the same editor, gestures sent to the host on the main thread).
 
 ## Constraints
 
@@ -47,10 +47,10 @@ Sp9ceVerb, a reverb plugin with nine spaces on one engine. CLAP id
   chamber echoes, the reversed Room pattern, and infinity for Infinite and for Chaos above zero. Change
   it together with anything that lengthens the ring-out.
 - Shell trace, for a host that goes silent: create `sp9ceverb-trace.on` in the
-  temporary folder before the plugin first processes, and the VST3, AU and
+  temporary folder before the plugin is first created, and the VST3, AU and
   AAX append what the host is doing (calls, input and output peaks, engine
-  values) to `sp9ceverb-trace.log` there while the editor is open
-  (`shell_host.rs`, `trace`). It is off otherwise.
+  values) to `sp9ceverb-trace.log` there while the editor is open (the
+  SDK's `shell::trace`, written from `op_editor_set_plain`). It is off otherwise.
 - Never rebuild, reinstall or re-sign while a host suite or validator is
   running: it tests the installed bundles. Use `--check-only` for the editor
   checks.
@@ -74,12 +74,13 @@ scripts/build_shells.sh --check-only            # the same checks on what is alr
 auval -v aufx Sp9v OpGd
 scripts/sign_aax.sh [--install]         # settings in scripts/signing.local.env (untracked)
 cd plugin && . ../scripts/sdk_env.sh && cargo_sdk test --release
+scripts/cargo_sdk <cargo args>          # the same patches, for tools that run cargo (the test runner, its hooks)
 clap-validator validate dist/Sp9ceVerb.clap
 ```
 
-The plugin builds against OpenPluginSDK 0.2.0-beta and GoodLookinDri 0.1.0.
-Later versions of both need a port first: the SDK's VST3, AU and AAX shells
-moved to a larger C interface (shell ABI 8) that `shell_host.rs` does not export.
+The plugin builds against OpenPluginSDK 1.0.0-beta, which carries GoodLookinDri
+(0.2.1) in its tree. `shell_host.rs` exports the shells' audio ABI with the
+SDK's `export_shell!` and adds its own `op_editor_*`.
 
 Host test: the plugin-daw-test skill, `--fx "CLAP: Sp9ceVerb"`. Voicing controls
 only act in their own voicing, so the exceptions file gives each one a

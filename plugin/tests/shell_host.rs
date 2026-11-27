@@ -72,9 +72,8 @@ fn tail_follows_the_decay_the_echoes_infinite_and_chaos() {
         assert!(op_shell_tail_seconds(p).is_infinite());
         op_shell_destroy(p);
 
-        // An unknown instance gets the longest finite tail the ranges allow.
-        let longest = op_shell_tail_seconds(std::ptr::null_mut());
-        assert!(longest.is_finite() && longest > 240.0 && longest < 250.0, "{longest}");
+        // No instance, no tail (the SDK's answer; a shell only asks a live one).
+        assert_eq!(op_shell_tail_seconds(std::ptr::null_mut()), 0.0);
     }
 }
 
@@ -111,5 +110,28 @@ fn tail_covers_the_reversed_room_pattern() {
         op_shell_process(p, input.as_ptr(), input.as_ptr(), l.as_mut_ptr(), r.as_mut_ptr(), 256);
         assert!((op_shell_tail_seconds(p) - 3.6).abs() < 1e-3);
         op_shell_destroy(p);
+    }
+}
+
+#[test]
+fn host_ids_are_the_released_ones() {
+    // Sessions find the plugin by these; they must never change.
+    let mut info: openplugin::targets::shell::OpShellInfo = unsafe { std::mem::zeroed() };
+    assert_eq!(unsafe { op_shell_info(&mut info) }, 1);
+    let code = |b: &[u8; 4]| u32::from_be_bytes(*b);
+    assert_eq!(
+        (info.manufacturer_id, info.product_id, info.plugin_id_mono, info.plugin_id_stereo),
+        (code(b"OpGd"), code(b"Sp9v"), code(b"Sp9M"), code(b"Sp9S"))
+    );
+    let hex: String = info.processor_cid.iter().map(|b| format!("{b:02X}")).collect();
+    assert_eq!(hex, "544652EF5BA640C4E0271A840723B99F", "VST3 processor id of 1.0.1");
+}
+
+#[test]
+fn only_rates_the_engine_runs_at_are_accepted() {
+    use openplugin::prelude::Plugin;
+    let plugin = sp9ceverb::plugin::OnePlugin::default();
+    for (rate, ok) in [(7_999.0, false), (8_000.0, true), (48_000.0, true), (384_000.0, true), (768_000.0, true), (768_001.0, false), (f32::NAN, false)] {
+        assert_eq!(plugin.accepts_sample_rate(rate), ok, "{rate}");
     }
 }

@@ -93,6 +93,12 @@ pub struct Visual {
     input_level: f32,
 }
 
+impl Default for Visual {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Visual {
     pub fn new() -> Self {
         let mut analyser = Analyser::default();
@@ -184,8 +190,8 @@ impl Visual {
 
         let want = palette(p.mode);
         let k = (dt * 5.0).min(1.0);
-        for i in 0..3 {
-            self.pal[i] = mix(self.pal[i], want[i], k);
+        for (have, want) in self.pal.iter_mut().zip(want) {
+            *have = mix(*have, want, k);
         }
 
         // Sparks lift off the front of the surface when there is signal.
@@ -247,10 +253,10 @@ impl Visual {
         for k in 0..NT {
             let t = k as f32 / (NT - 1) as f32 * self.view_seconds;
             let row = &self.hist[(self.head + k) % NT];
-            for fi in 0..NF {
+            for (fi, &level) in row.iter().enumerate() {
                 let hz = F_MIN * (F_MAX / F_MIN).powf(fi as f32 / (NF - 1) as f32);
                 let m = self.model(p, hz, t, fi, k);
-                let mut hgt = 0.50 * m * breath + 0.80 * row[fi] * (0.4 + 0.6 * m.min(1.0));
+                let mut hgt = 0.50 * m * breath + 0.80 * level * (0.4 + 0.6 * m.min(1.0));
                 if p.chaos > 0.0 {
                     // Chaos tears the surface: stepped spikes that never repeat.
                     let cell = ((fi / 3) * 31 + k * 17 + (self.time * (6.0 + 18.0 * p.chaos)) as usize * 7) as f32;
@@ -617,9 +623,9 @@ impl Visual {
             let zf = k as f32 / (NT - 1) as f32;
             let fog = (1.0 - zf).powf(1.3) * 0.86 + 0.14;
             let occ = &snaps[k * cols..(k + 1) * cols];
-            for fi in 0..NF {
+            for (fi, pt) in pts.iter_mut().enumerate() {
                 let (px, py, _) = project(world_x(fi), self.heights[k * NF + fi] * 0.66, zf * depth);
-                pts[fi] = (px, py);
+                *pt = (px, py);
             }
             // A band of light travels down the time axis.
             let pulse = (1.0 - ((zf - pulse_pos).abs() * 9.0).min(1.0)).powi(2) * 0.55;

@@ -17,7 +17,7 @@ use crate::gui::{Editor, HEIGHT, WIDTH};
 use crate::plugin::{create_with_shared, GuiEvent, OnePlugin, Shared};
 use openplugin::targets::clap as sdk;
 use openplugin::targets::clap_abi::*;
-use openplugin::targets::PluginForExport;
+use openplugin::prelude::Plugin;
 use std::ffi::{c_char, c_void, CStr};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
@@ -530,7 +530,7 @@ static FACTORY: SyncFactory = SyncFactory(clap_plugin_factory {
     create_plugin: Some(factory_create),
 });
 
-fn create_plugin() -> Box<dyn PluginForExport> {
+fn create_plugin() -> Box<dyn Plugin> {
     Box::new(OnePlugin::default())
 }
 

@@ -184,6 +184,7 @@ impl<'a> Canvas<'a> {
     }
 
     /// Add a precomputed 8-bit light mask, tinted.
+    #[allow(clippy::too_many_arguments)] // position, size, mask and tint: one call per draw
     pub fn add_mask(&mut self, x: i32, y: i32, mw: usize, mh: usize, mask: &[u8], c: Rgb, a: f32) {
         let (cr, cg, cb) = ((c[0] * a * 256.0) as u32, (c[1] * a * 256.0) as u32, (c[2] * a * 256.0) as u32);
         for my in 0..mh {

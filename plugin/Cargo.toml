@@ -14,9 +14,13 @@ crate-type = ["cdylib", "staticlib", "rlib"]
 # scripts/build.sh, which supplies them as cargo patches.
 [dependencies]
 sp9ce-engine = { path = "../crates/engine" }
-openplugin = "0.2.0-beta"
-goodlookindri-shell = "0.1.0"
+openplugin = "1.0.0-beta"
+goodlookindri-shell = "0.2.1"
 cpal = { version = "0.15", optional = true }
+
+[dev-dependencies]
+# The conformance kit; nothing of it ships in the plugin.
+openplugin = { version = "1.0.0-beta", features = ["testing"] }
 
 [features]
 default = []

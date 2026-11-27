@@ -309,7 +309,7 @@ fn ambience_at_five_times_its_size_is_longer_but_still_dense_and_no_louder() {
 #[test]
 fn the_longest_reversed_pattern_fits_the_input_line_at_every_rate() {
     // 0.4 s of predelay and 0.5 s x 4: the last and loudest tap is 2.4 s after the input.
-    for fs in [32_000.0, 48_000.0, 64_000.0] {
+    for fs in [32_000.0, 44_100.0, 48_000.0, 64_000.0, 88_200.0, 176_400.0, 352_800.0, 384_000.0, 705_600.0, 768_000.0] {
         let mut e = wet(Mode::Room);
         e.activate(fs);
         e.set_param(ParamId::Reverse, 1.0);

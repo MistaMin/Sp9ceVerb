@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+- Built on OpenPluginSDK 1.0.0-beta, which carries GoodLookinDri in its tree.
+  The VST3, Audio Unit and AAX shells speak its shell ABI 10. The sound, the
+  parameters and the plugin and parameter ids are unchanged, and sessions
+  saved with 1.0.1-Beta open with every value intact.
+- The VST3 has a host bypass parameter, which hosts use for their own
+  bypass switch.
+- VST3 and Audio Unit hosts show values as text (`Concert Hall`, `7.46 s`)
+  instead of bare numbers.
+- The plugin runs at its real sample rate from 8 to 768 kHz and tells the
+  host so. Above 384 kHz it used to run as if at 384 kHz, with every time and
+  frequency off.
+
 ## 1.0.1-Beta - 2026-11-22
 
 - The reported tail now includes the reversed Room pattern (up to 2 s at

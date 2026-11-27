@@ -452,6 +452,9 @@ pub struct Engine {
     ref_unit: f32,
 }
 
+/// The sample rates the engine runs at; anything else is clamped into this range.
+pub const SAMPLE_RATES: std::ops::RangeInclusive<f32> = 8_000.0..=768_000.0;
+
 impl Engine {
     pub fn new(mode: Mode) -> Self {
         let mut e = Self {
@@ -577,7 +580,7 @@ impl Engine {
 
     /// Allocate for a sample rate and clear all state. Not realtime-safe.
     pub fn activate(&mut self, sample_rate: f32) {
-        let fs = sample_rate.clamp(8_000.0, 384_000.0);
+        let fs = sample_rate.clamp(*SAMPLE_RATES.start(), *SAMPLE_RATES.end());
         self.fs = fs;
         let n = |seconds: f32| (seconds * fs) as usize + 8;
         self.in_l = Delay::new(n(INPUT_LINE_SECONDS));

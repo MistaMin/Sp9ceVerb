@@ -10,11 +10,11 @@ bundle carries the licence text of the format SDK it links in its
 | Component | Used for | License |
 |---|---|---|
 | OpenPluginSDK | plugin framework and the VST3, Audio Unit and AAX shells | MIT or Apache License 2.0 |
-| GoodLookinDri | the editor's drawing and window code (Rust, linked statically) | MIT |
+| GoodLookinDri (in the OpenPluginSDK tree) | the editor's drawing and window code (Rust, linked statically) | MIT |
 | Rust standard library | engine, plugin and editor code | MIT or Apache License 2.0 |
 | fontdue, ttf-parser | lettering | MIT or Apache License 2.0 (fontdue also Zlib) |
 | rustfft, num-complex, num-integer, num-traits, primal-check, strength_reduce, transpose | the spectrum in the displays | MIT or Apache License 2.0 |
-| hashbrown, ahash, allocator-api2, once_cell, cfg-if, libc, log, bitflags, serde, zerocopy, raw-window-handle | support libraries | MIT or Apache License 2.0 (zerocopy also BSD 2-Clause, raw-window-handle also Zlib) |
+| hashbrown, ahash, allocator-api2, once_cell, cfg-if, log, serde, serde_json, itoa, memchr, zmij, zerocopy | support libraries | MIT or Apache License 2.0 (zerocopy also BSD 2-Clause, memchr MIT or Unlicense, zmij MIT) |
 | CLAP | CLAP format | MIT |
 | LV2 | LV2 format: the interface is written from the specification, and no LV2 code is linked | ISC |
 | VST3 SDK (Steinberg) | VST3 format | MIT |

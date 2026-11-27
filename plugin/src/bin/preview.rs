@@ -78,23 +78,23 @@ fn main() {
     let mut editor = Editor::new(shared);
 
     // Plucked notes through the reverb, 30 frames a second.
-    let mut io = vec![vec![0.0f32; 1600], vec![0.0f32; 1600]];
+    let [mut l, mut r] = [vec![0.0f32; 1600], vec![0.0f32; 1600]];
     let frames = (seconds * 30.0) as usize;
     let mut n = 0usize;
     let mut worst = 0.0f64;
     let mut last = None;
     for f in 0..frames {
-        for i in 0..1600 {
+        for (sl, sr) in l.iter_mut().zip(r.iter_mut()) {
             let t = n as f32 / 48_000.0;
             let beat = (t * 2.5).fract();
             let note = [220.0, 330.0, 277.2, 440.0, 392.0][(t * 2.5) as usize % 5];
             let env = (-beat * 14.0).exp();
             let x = 0.5 * env * ((t * note * std::f32::consts::TAU).sin() + 0.4 * (t * note * 2.01 * std::f32::consts::TAU).sin());
-            io[0][i] = x;
-            io[1][i] = x;
+            *sl = x;
+            *sr = x;
             n += 1;
         }
-        plugin.process(&mut io, 1600);
+        plugin.process(&mut [&mut l[..], &mut r[..]], 1600);
         editor.tick(1.0 / 30.0);
         if f == frames / 2 {
             editor.mouse_move(540.0, 470.0); // hover a knob

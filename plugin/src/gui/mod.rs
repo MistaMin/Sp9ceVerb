@@ -593,10 +593,10 @@ impl Editor {
             Some(i) => Some(i),
             None => all.iter().position(matches),
         };
-        let (out, _) = self.shared.take_peaks();
-        for ch in 0..2 {
-            let db = if out[ch] > 1e-5 { 20.0 * out[ch].log10() } else { -100.0 };
-            self.peak_db[ch] = db.max(self.peak_db[ch] - 36.0 * dt);
+        let out = self.shared.take_peaks();
+        for (peak, level) in self.peak_db.iter_mut().zip(out) {
+            let db = if level > 1e-5 { 20.0 * level.log10() } else { -100.0 };
+            *peak = db.max(*peak - 36.0 * dt);
         }
         self.hold_db = self.peak_db[0].max(self.peak_db[1]).max(self.hold_db - 9.0 * dt);
         let p = self.vis_params();
@@ -785,10 +785,10 @@ impl Editor {
         scene.fill_round(panel, 12.0, Color(0xf50b0f1d), Color(0xf5060811), true);
         retro::glow_round(scene, panel, 12.0, hex(pal[1], 0.6), 1.0, 0.5, true);
         let column = panel.w / Mode::COUNT as f32;
-        for m in 0..Mode::COUNT {
+        for (m, &name) in KEY_NAMES.iter().enumerate() {
             let x = panel.x + column * m as f32;
             let colour = hex(palette(m)[1], if m == self.mode.index() { 1.0 } else { 0.75 });
-            scene.text(Point::new(x + 12.0, panel.y + 17.0), KEY_NAMES[m], colour, 9.5, false);
+            scene.text(Point::new(x + 12.0, panel.y + 17.0), name, colour, 9.5, false);
             scene.line(Point::new(x + 10.0, panel.y + 27.5), Point::new(x + column - 10.0, panel.y + 27.5), hex(palette(m)[1], 0.35), 1.0);
         }
         for (i, cell) in browser_cells().iter().enumerate() {

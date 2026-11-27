@@ -1,7 +1,7 @@
 #!/bin/sh
-# Locates OpenPluginSDK and GoodLookinDri and prints the cargo --config
-# arguments that patch them in. Source of truth for every script that builds
-# the plugin crate. Override with OPENPLUGIN_SDK / GOODLOOKINDRI.
+# Locates OpenPluginSDK, which carries GoodLookinDri in its tree, and defines
+# the cargo --config arguments that patch both in. Source of truth for every
+# script that builds the plugin crate. Override with OPENPLUGIN_SDK.
 find_dir() { # name, env override
   if [ -n "$2" ] && [ -d "$2" ]; then echo "$2"; return 0; fi
   here="$(cd "$(dirname "$0")/.." && pwd)"
@@ -10,8 +10,8 @@ find_dir() { # name, env override
   done
   return 1
 }
-SDK_DIR="$(find_dir OpenPluginSDK "$OPENPLUGIN_SDK")" || { echo "OpenPluginSDK not found; set OPENPLUGIN_SDK" >&2; exit 1; }
-DRI_DIR="$(find_dir GoodLookinDri "$GOODLOOKINDRI")" || { echo "GoodLookinDri not found; set GOODLOOKINDRI" >&2; exit 1; }
+SDK_DIR="$(find_dir OpenPluginSDK "$OPENPLUGIN_SDK")" || { echo "OpenPluginSDK not found; set OPENPLUGIN_SDK" >&2; return 1; }
+DRI_DIR="$SDK_DIR/crates/goodlookindri"
 export SDK_DIR DRI_DIR
 cargo_sdk() { # usage: cargo_sdk <cargo args...>
   sub="$1"; shift

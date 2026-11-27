@@ -16,13 +16,17 @@ impl Rng {
 
 fn run(seed: u64, rounds: usize) -> Result<(), String> {
     let mut rng = Rng(seed | 1);
-    let rates = [44_100.0f32, 48_000.0, 96_000.0, 192_000.0, 8_000.0];
+    let rates = [44_100.0f32, 48_000.0, 96_000.0, 192_000.0, 8_000.0, 768_000.0];
     let mut e = Engine::new(Mode::Hall);
+    let mut fs = 48_000.0f32;
     let mut input = vec![0.0f32; 4096];
     let (mut l, mut r) = (vec![0.0f32; 4096], vec![0.0f32; 4096]);
     for round in 0..rounds {
         match (rng.next() * 12.0) as usize {
-            0 => e.activate(rates[(rng.next() * rates.len() as f32) as usize % rates.len()]),
+            0 => {
+                fs = rates[(rng.next() * rates.len() as f32) as usize % rates.len()];
+                e.activate(fs);
+            }
             1 => e.reset(),
             2 | 3 => e.set_param(ParamId::Mode, (rng.next() * 9.0).floor()),
             _ => {
@@ -52,7 +56,8 @@ fn run(seed: u64, rounds: usize) -> Result<(), String> {
     // Whatever happened, the dry path still works.
     e.set_param(ParamId::Mix, 0.0);
     e.set_param(ParamId::Level, 1.0);
-    for _ in 0..8 {
+    // The same settling time at every rate: 8 blocks at 48 kHz.
+    for _ in 0..(8.0 * fs / 48_000.0).ceil().max(8.0) as usize {
         input.fill(0.25);
         e.process(&input, &input, &mut l, &mut r);
     }

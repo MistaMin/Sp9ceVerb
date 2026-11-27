@@ -53,7 +53,8 @@ impl Voice {
             self.io[1][i] = r;
             self.n += 1;
         }
-        self.plugin.process(&mut self.io, frames);
+        let [l, r] = &mut self.io[..] else { return };
+        self.plugin.process(&mut [&mut l[..], &mut r[..]], frames);
     }
 }
 

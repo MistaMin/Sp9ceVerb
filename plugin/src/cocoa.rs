@@ -226,7 +226,7 @@ unsafe fn view_class() -> Class {
     if cls.is_null() {
         return null_mut();
     }
-    class_addIvar(cls, IVAR.as_ptr() as *const c_char, 8, 3, b"^v\0".as_ptr() as *const c_char);
+    class_addIvar(cls, IVAR.as_ptr() as *const c_char, 8, 3, c"^v".as_ptr());
     let add = |name: &[u8], imp: *const c_void, types: &[u8]| {
         class_addMethod(cls, sel(name), imp, types.as_ptr() as *const c_char);
     };

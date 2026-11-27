@@ -3,9 +3,10 @@
 
 use openplugin::dri::goodlookindri::spectrum::SampleRing;
 use openplugin::prelude::*;
-use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
+use openplugin::core::{decode_params, encode_params, restore_params, AaxIds, NotePorts};
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
-use sp9ce_engine::engine::REVERSE_SPAN;
+use sp9ce_engine::engine::{REVERSE_SPAN, SAMPLE_RATES};
 use sp9ce_engine::{params, Engine, Mode, ParamId};
 
 pub const PARAM_COUNT: usize = ParamId::COUNT;
@@ -87,7 +88,6 @@ pub struct Shared {
     pub ring: SampleRing,
     pub sample_rate: AtomicU32,
     peak_out: [AtomicU32; 2],
-    peak_in: AtomicU32,
     /// Editor gestures waiting to be handed to the host and the engine.
     pub queue: GuiQueue,
     /// Which display the editor shows; kept here so reopening the editor keeps it.
@@ -104,7 +104,6 @@ impl Shared {
             ring: SampleRing::new(),
             sample_rate: AtomicU32::new(48_000f32.to_bits()),
             peak_out: [AtomicU32::new(0), AtomicU32::new(0)],
-            peak_in: AtomicU32::new(0),
             queue: GuiQueue::new(),
             view: AtomicU32::new(0),
             preset: AtomicU32::new(0),
@@ -120,11 +119,8 @@ impl Shared {
     }
 
     /// Output peaks since the last call (linear), then cleared.
-    pub fn take_peaks(&self) -> ([f32; 2], f32) {
-        let l = f32::from_bits(self.peak_out[0].swap(0, Ordering::Relaxed));
-        let r = f32::from_bits(self.peak_out[1].swap(0, Ordering::Relaxed));
-        let i = f32::from_bits(self.peak_in.swap(0, Ordering::Relaxed));
-        ([l, r], i)
+    pub fn take_peaks(&self) -> [f32; 2] {
+        self.peak_out.each_ref().map(|p| f32::from_bits(p.swap(0, Ordering::Relaxed)))
     }
 
     fn raise(slot: &AtomicU32, v: f32) {
@@ -188,24 +184,18 @@ pub fn info() -> &'static PluginInfo {
             list.push(p);
         }
         let params: &'static [ParamInfo] = Box::leak(list.into_boxed_slice());
-        Box::leak(Box::new(PluginInfo {
-            id: "com.opengrid.sp9ceverb",
-            name: "Sp9ceVerb",
-            vendor: "OpenGrid",
-            url: "",
-            email: "",
-            version: env!("CARGO_PKG_VERSION"),
-            category: Category::Reverb,
-            params,
-            is_instrument: false,
-            has_editor: true,
-        }))
+        Box::leak(Box::new(
+            PluginInfo::new("com.opengrid.sp9ceverb", "Sp9ceVerb", "OpenGrid", env!("CARGO_PKG_VERSION"), Category::Reverb, params)
+                .with_editor(true),
+        ))
     })
 }
 
 /// The shared state of the last plugin made since the slot was last emptied.
 /// [`create_with_shared`] empties it, asks the SDK for a plugin and takes it.
 static HANDOFF: Mutex<Option<Arc<Shared>>> = Mutex::new(None);
+/// Set only during [`create_with_shared`], so the shells' instances leave the slot alone.
+static HANDING_OFF: AtomicBool = AtomicBool::new(false);
 
 fn take_handoff() -> Option<Arc<Shared>> {
     HANDOFF.lock().ok().and_then(|mut g| g.take())
@@ -218,7 +208,9 @@ pub fn create_with_shared<T>(create: impl FnOnce() -> T) -> (T, Option<Arc<Share
     static TURN: Mutex<()> = Mutex::new(());
     let _turn = TURN.lock();
     let _ = take_handoff(); // drop anything stale
+    HANDING_OFF.store(true, Ordering::Release);
     let made = create();
+    HANDING_OFF.store(false, Ordering::Release);
     (made, take_handoff())
 }
 
@@ -281,10 +273,12 @@ pub struct OnePlugin {
 impl Default for OnePlugin {
     fn default() -> Self {
         let shared = Shared::new();
-        if let Ok(mut slot) = HANDOFF.lock() {
-            // The last one made in a create is the instance: the SDK's CLAP
-            // factory makes a throwaway first to read its descriptor.
-            *slot = Some(shared.clone());
+        if HANDING_OFF.load(Ordering::Acquire) {
+            if let Ok(mut slot) = HANDOFF.lock() {
+                // The last one made in a create is the instance: the SDK's CLAP
+                // factory makes a throwaway first to read its descriptor.
+                *slot = Some(shared.clone());
+            }
         }
         // Start from the published defaults, so the host and the engine agree.
         let mut engine = Engine::new(Mode::Hall);
@@ -346,18 +340,14 @@ impl Plugin for OnePlugin {
         info().params.iter().position(|p| p.id == id).map(|i| self.engine.param(ParamId::ALL[i]))
     }
 
-    fn process(&mut self, io: &mut [Vec<f32>], frames: usize) {
+    fn process(&mut self, io: &mut [&mut [f32]], frames: usize) {
         let frames = frames.min(self.in_l.len());
         if frames == 0 || io.is_empty() {
             return;
         }
-        let mut peak_in = 0.0f32;
         if io.len() >= 2 {
             self.in_l[..frames].copy_from_slice(&io[0][..frames]);
             self.in_r[..frames].copy_from_slice(&io[1][..frames]);
-            for i in 0..frames {
-                peak_in = peak_in.max(self.in_l[i].abs()).max(self.in_r[i].abs());
-            }
             let (left, right) = io.split_at_mut(1);
             let (l, r) = (&mut left[0][..frames], &mut right[0][..frames]);
             self.engine.process(&self.in_l[..frames], &self.in_r[..frames], l, r);
@@ -377,41 +367,32 @@ impl Plugin for OnePlugin {
             self.shared.ring.push(&[l, r]);
         } else {
             self.in_l[..frames].copy_from_slice(&io[0][..frames]);
-            for v in &self.in_l[..frames] {
-                peak_in = peak_in.max(v.abs());
-            }
             let l = &mut io[0][..frames];
             self.engine.process(&self.in_l[..frames], &self.in_l[..frames], l, &mut self.out_r[..frames]);
             let mut p = 0.0f32;
-            for i in 0..frames {
-                let v = 0.5 * (l[i] + self.out_r[i]);
-                l[i] = if v.is_finite() { v } else { 0.0 };
-                p = p.max(l[i].abs());
+            for (s, r) in l.iter_mut().zip(&self.out_r[..frames]) {
+                let v = 0.5 * (*s + r);
+                *s = if v.is_finite() { v } else { 0.0 };
+                p = p.max(s.abs());
             }
             Shared::raise(&self.shared.peak_out[0], p);
             Shared::raise(&self.shared.peak_out[1], p);
             self.shared.ring.push(&[l]);
         }
-        Shared::raise(&self.shared.peak_in, peak_in);
-    }
-
-    fn tail_samples(&self) -> usize {
-        // The longest finite tail stands in for an endless one here; `tail` says which it is.
-        let seconds = tail_seconds(|id| self.engine.param(id)).min(longest_tail_seconds());
-        (seconds * self.sample_rate as f64) as usize
     }
 
     fn tail(&self) -> Tail {
-        if tail_seconds(|id| self.engine.param(id)).is_infinite() {
+        let seconds = tail_seconds(|id| self.engine.param(id));
+        if seconds.is_infinite() {
             Tail::Infinite
         } else {
-            Tail::Finite(self.tail_samples().min(u32::MAX as usize) as u32)
+            Tail::Finite((seconds.min(longest_tail_seconds()) * self.sample_rate as f64).min(u32::MAX as f64) as u32)
         }
     }
 
     fn accepts_sample_rate(&self, sample_rate: f32) -> bool {
-        // The engine clamps its own rate; any sane value is fine.
-        sample_rate.is_finite() && (1_000.0..=768_000.0).contains(&sample_rate)
+        // Outside this the engine would run at a clamped rate, with every time and frequency off.
+        SAMPLE_RATES.contains(&sample_rate)
     }
 
     fn save_state(&mut self) -> Option<Vec<u8>> {
@@ -424,6 +405,15 @@ impl Plugin for OnePlugin {
             Some(values) => restore_params(self, &values),
             None => false,
         }
+    }
+
+    fn editor_state(&self) -> Option<EditorState> {
+        Some(self.shared.clone())
+    }
+
+    fn aax_ids(&self) -> Option<AaxIds> {
+        // Pro Tools sessions find the plugin by these: fixed for good.
+        Some(AaxIds { manufacturer: *b"OpGd", product: *b"Sp9v", mono: *b"Sp9M", stereo: *b"Sp9S" })
     }
 
     fn note_ports(&self) -> NotePorts {
