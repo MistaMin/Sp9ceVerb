@@ -353,10 +353,11 @@ impl Plugin for OnePlugin {
             self.engine.process(&self.in_l[..frames], &self.in_r[..frames], l, r);
             let (mut pl, mut pr) = (0.0f32, 0.0f32);
             for i in 0..frames {
-                if !l[i].is_finite() {
+                // Not normal: NaN, infinity or a denormal (which no host should see), all to 0.
+                if !l[i].is_normal() {
                     l[i] = 0.0;
                 }
-                if !r[i].is_finite() {
+                if !r[i].is_normal() {
                     r[i] = 0.0;
                 }
                 pl = pl.max(l[i].abs());
@@ -372,7 +373,7 @@ impl Plugin for OnePlugin {
             let mut p = 0.0f32;
             for (s, r) in l.iter_mut().zip(&self.out_r[..frames]) {
                 let v = 0.5 * (*s + r);
-                *s = if v.is_finite() { v } else { 0.0 };
+                *s = if v.is_normal() { v } else { 0.0 };
                 p = p.max(s.abs());
             }
             Shared::raise(&self.shared.peak_out[0], p);

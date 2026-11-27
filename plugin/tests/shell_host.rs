@@ -131,7 +131,7 @@ fn host_ids_are_the_released_ones() {
 fn only_rates_the_engine_runs_at_are_accepted() {
     use openplugin::prelude::Plugin;
     let plugin = sp9ceverb::plugin::OnePlugin::default();
-    for (rate, ok) in [(7_999.0, false), (8_000.0, true), (48_000.0, true), (384_000.0, true), (768_000.0, true), (768_001.0, false), (f32::NAN, false)] {
+    for (rate, ok) in [(999.0, false), (1_000.0, true), (8_000.0, true), (48_000.0, true), (384_000.0, true), (768_000.0, true), (768_001.0, false), (f32::NAN, false)] {
         assert_eq!(plugin.accepts_sample_rate(rate), ok, "{rate}");
     }
 }

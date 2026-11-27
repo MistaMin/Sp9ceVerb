@@ -453,7 +453,7 @@ pub struct Engine {
 }
 
 /// The sample rates the engine runs at; anything else is clamped into this range.
-pub const SAMPLE_RATES: std::ops::RangeInclusive<f32> = 8_000.0..=768_000.0;
+pub const SAMPLE_RATES: std::ops::RangeInclusive<f32> = 1_000.0..=768_000.0;
 
 impl Engine {
     pub fn new(mode: Mode) -> Self {

@@ -70,6 +70,7 @@ Sp9ceVerb, a reverb plugin with nine spaces on one engine. CLAP id
 cargo test --workspace --release
 scripts/build.sh [--install] [--app]            # CLAP and LV2; --app also builds the standalone
 scripts/build_shells.sh [--install] [--check]   # VST3, AU, AAX; --check clicks each editor's preset arrow
+                                                # and changes the VST3's rate 1400 times without a host
 scripts/build_shells.sh --check-only            # the same checks on what is already built; builds nothing
 auval -v aufx Sp9v OpGd
 scripts/sign_aax.sh [--install]         # settings in scripts/signing.local.env (untracked)
@@ -110,6 +111,6 @@ Measurement: `cargo build --release -p sp9ce-engine --example probe`, then
   binaries (arm64 and x86_64) of CLAP, VST3, Audio Unit, LV2 and AAX. The
   owner decided against shipping the standalone. 0.1.0 was arm64 only and had
   no LV2.
-- Versions: `plugin/Cargo.toml` holds the full version (`1.0.1-beta`), which
-  hosts show. Bundle `Info.plist` files get the numbers alone (`1.0.1`).
-  Documents, the tag and the file names use the owner's wording (`1.0.1-Beta`).
+- Versions: `plugin/Cargo.toml` holds the full version (`1.1.0-beta`), which
+  hosts show. Bundle `Info.plist` files get the numbers alone (`1.1.0`).
+  Documents, the tag and the file names use the owner's wording (`1.1-Beta`).

@@ -1,4 +1,4 @@
-# Sp9ceVerb 1.0.1-Beta User Manual
+# Sp9ceVerb 1.1-Beta User Manual
 
 ## 1. What it is
 
@@ -31,6 +31,8 @@ Where the design came from is stated in `docs/PROVENANCE.md`.
 - A Mac with Apple silicon or an Intel processor. Every format is a universal
   binary (arm64 and x86_64).
 - macOS 11.0 or later.
+- Any sample rate up to 768 kHz: from 1 kHz as CLAP, LV2 and Audio Unit,
+  from 8 kHz as VST3 and AAX. Times and frequencies follow the real rate.
 - A host that loads CLAP, VST3, Audio Unit (effect), LV2 or AAX plugins.
 - The editor uses Cocoa and Core Text, so it is macOS only.
 - Windows and Linux are not supported in this release, and there is no
@@ -38,7 +40,7 @@ Where the design came from is stated in `docs/PROVENANCE.md`.
 
 ## 3. Installing
 
-Run `Sp9ceVerb-1.0.1-Beta-macos.pkg`. The installer offers one choice per format
+Run `Sp9ceVerb-1.1-Beta-macos.pkg`. The installer offers one choice per format
 and installs to the system-wide folders:
 
 | Format | Installed to |
@@ -53,7 +55,7 @@ Rescan plugins in your host afterwards. The Audio Unit appears as
 "OpenGrid: Sp9ceVerb" (type `aufx`, subtype `Sp9v`, manufacturer `OpGd`); the
 CLAP id is `com.opengrid.sp9ceverb`, and the LV2 is
 `https://opengrid.studio/plugins/sp9ceverb`. Hosts show the version as
-`1.0.1-beta`.
+`1.1.0-beta`.
 
 To uninstall, delete the bundles from the folders above.
 
@@ -284,11 +286,12 @@ general room acoustics and common mixing practice (`presets/README.md`).
 | Format | Notes |
 |---|---|
 | CLAP | With the editor. Passes clap-validator. |
-| VST3 | With the editor. |
+| VST3 | With the editor. Has a bypass parameter, which hosts use for their own bypass switch. |
 | Audio Unit | Effect (`aufx`) with the editor. Passes `auval`. |
 | LV2 | With the editor, in hosts that show Cocoa editors; other hosts show their own controls for the 54 parameters. The host saves the parameters as control ports. |
 | AAX | With the editor, Developer ID signed and PACE signed. Passes Avid's AAX Validator. Not yet tested inside Pro Tools. |
 
+VST3 and Audio Unit hosts show values as text (`Concert Hall`, `7.46 s`).
 The plugin processes a stereo input to a stereo output. Session state (all
 parameters) is saved and restored by the host.
 

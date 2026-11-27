@@ -10,9 +10,11 @@
   bypass switch.
 - VST3 and Audio Unit hosts show values as text (`Concert Hall`, `7.46 s`)
   instead of bare numbers.
-- The plugin runs at its real sample rate from 8 to 768 kHz and tells the
-  host so. Above 384 kHz it used to run as if at 384 kHz, with every time and
+- The plugin runs at its real sample rate up to 768 kHz and tells the host
+  so: from 1 kHz as CLAP, LV2 and Audio Unit, from 8 kHz as VST3 and AAX.
+  Above 384 kHz it used to run as if at 384 kHz, with every time and
   frequency off.
+- Hosts show the version as `1.1.0-beta`.
 
 ## 1.0.1-Beta - 2026-11-22
 

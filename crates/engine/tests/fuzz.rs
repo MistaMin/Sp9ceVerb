@@ -16,7 +16,7 @@ impl Rng {
 
 fn run(seed: u64, rounds: usize) -> Result<(), String> {
     let mut rng = Rng(seed | 1);
-    let rates = [44_100.0f32, 48_000.0, 96_000.0, 192_000.0, 8_000.0, 768_000.0];
+    let rates = [44_100.0f32, 48_000.0, 96_000.0, 192_000.0, 8_000.0, 1_000.0, 768_000.0];
     let mut e = Engine::new(Mode::Hall);
     let mut fs = 48_000.0f32;
     let mut input = vec![0.0f32; 4096];

@@ -109,8 +109,12 @@ if [ "$CHECK" = 1 ]; then
   clang++ -std=c++17 -fno-objc-arc -I"$VST3_SDK" "$ROOT/tools/vst3_editor_check.mm" \
     "$VST3_SDK/public.sdk/source/vst/vstinitiids.cpp" -o "$BUILD/vst3_editor_check" \
     "$LIBS/libsdk_common.a" "$LIBS/libbase.a" "$LIBS/libpluginterfaces.a" -framework Cocoa
+  clang++ -std=c++17 -O2 -fno-objc-arc -I"$VST3_SDK" "$ROOT/tools/vst3_rate_check.mm" \
+    "$VST3_SDK/public.sdk/source/vst/vstinitiids.cpp" -o "$BUILD/vst3_rate_check" \
+    "$LIBS/libsdk_common.a" "$LIBS/libbase.a" "$LIBS/libpluginterfaces.a" -framework Foundation
   clang++ -std=c++17 -fno-objc-arc "$ROOT/tools/au_editor_check.mm" -o "$BUILD/au_editor_check" \
     -framework Cocoa -framework AudioToolbox -framework AudioUnit
   echo "VST3 editor check:"; "$BUILD/vst3_editor_check" "$DIST/$NAME.vst3"
+  echo "VST3 rate change check:"; "$BUILD/vst3_rate_check" "$DIST/$NAME.vst3" 200
   echo "AU editor check:"; "$BUILD/au_editor_check"
 fi
