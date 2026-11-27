@@ -74,6 +74,7 @@ scripts/build_shells.sh [--install] [--check]   # VST3, AU, AAX; --check clicks 
 scripts/build_shells.sh --check-only            # the same checks on what is already built; builds nothing
 auval -v aufx Sp9v OpGd
 scripts/sign_aax.sh [--install]         # settings in scripts/signing.local.env (untracked)
+scripts/package.sh <1.1-Beta>           # the signed, notarized .pkg and .dmg in dist/release (after the builds and the manual)
 cd plugin && . ../scripts/sdk_env.sh && cargo_sdk test --release
 scripts/cargo_sdk <cargo args>          # the same patches, for tools that run cargo (the test runner, its hooks)
 clap-validator validate dist/Sp9ceVerb.clap
